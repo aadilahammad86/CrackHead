@@ -1,0 +1,6 @@
+{
+  "name": "Crackhead",
+  "description": "Digital well-being and screen time self-control manager with custom smart rules, live session limits, and cooldown enforcement.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

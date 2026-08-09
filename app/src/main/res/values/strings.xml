@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Crackhead</string>
+    <string name="accessibility_service_description">Crackhead Accessibility Service monitors app usage to enforce continuous session limits and daily cooldown rules.</string>
+</resources>
