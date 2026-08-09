@@ -102,8 +102,8 @@ fun SelectAppsScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Select Apps",
-                    fontSize = 22.sp,
+                    text = "Select Watchlist Apps",
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
                     modifier = Modifier.weight(1f)
@@ -260,7 +260,7 @@ fun SelectAppsScreen(
                     )
                 ) {
                     Text(
-                        text = "Continue",
+                        text = if (selectedPackages.isNotEmpty()) "Confirm Selection & Set Rule" else "Continue",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

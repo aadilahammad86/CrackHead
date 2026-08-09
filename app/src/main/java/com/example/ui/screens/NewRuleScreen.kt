@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -34,14 +39,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.example.data.MonitoredApp
 import com.example.data.UsageRule
 import com.example.ui.theme.AccentLavender
@@ -269,16 +274,50 @@ fun NewRuleScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Allow up to",
-                        fontSize = 14.sp,
-                        color = TextSecondary
+                        text = "ALLOW UP TO",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.align(Alignment.Start)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Time Template Chips
+                    val presetTemplates = listOf(1, 2, 5, 10, 15, 30, 60, 120)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(presetTemplates) { mins ->
+                            val label = when {
+                                mins < 60 -> "${mins}m"
+                                mins % 60 == 0 -> "${mins / 60}h"
+                                else -> "${mins / 60}h ${mins % 60}m"
+                            }
+                            val isSelected = limitMinutes == mins
+                            Surface(
+                                onClick = { limitMinutes = mins },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else SurfaceContainerHigh
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary else TextPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -286,7 +325,7 @@ fun NewRuleScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         IconButton(
-                            onClick = { if (limitMinutes > 5) limitMinutes -= 5 },
+                            onClick = { if (limitMinutes > 1) limitMinutes -= 1 },
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
@@ -295,15 +334,15 @@ fun NewRuleScreen(
                             Icon(imageVector = Icons.Default.Remove, contentDescription = "Decrease", tint = TextPrimary)
                         }
 
-                        Spacer(modifier = Modifier.width(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
 
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(SurfaceContainerHigh)
                                 .clickable { showTimePicker = true }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 20.dp, vertical = 10.dp)
                         ) {
                             Text(
                                 text = timeFormatted,
@@ -311,18 +350,28 @@ fun NewRuleScreen(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = androidx.compose.material3.MaterialTheme.colorScheme.primary
                             )
-                            Text(
-                                text = "Tap to pick time",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TextSecondary
-                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Wheel Picker",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextSecondary
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
 
                         IconButton(
-                            onClick = { if (limitMinutes < 300) limitMinutes += 5 },
+                            onClick = { if (limitMinutes < 1440) limitMinutes += 1 },
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
@@ -559,7 +608,7 @@ fun NewRuleScreen(
         }
 
         if (showTimePicker) {
-            DurationTimePickerDialog(
+            ExpressiveWheelTimePickerDialog(
                 initialMinutes = limitMinutes,
                 onDismiss = { showTimePicker = false },
                 onTimeSelected = { selectedMinutes ->
@@ -570,76 +619,230 @@ fun NewRuleScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DurationTimePickerDialog(
+fun WheelPickerColumn(
+    items: List<Int>,
+    selectedItem: Int,
+    unitLabel: String,
+    onItemSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleCount = 5
+    val itemHeight = 44.dp
+    val selectedIndex = items.indexOf(selectedItem).coerceAtLeast(0)
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(selectedItem) {
+        val targetIdx = items.indexOf(selectedItem).coerceAtLeast(0)
+        if (listState.firstVisibleItemIndex != targetIdx && !listState.isScrollInProgress) {
+            listState.scrollToItem(targetIdx)
+        }
+    }
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val centerIndex = listState.firstVisibleItemIndex
+            val item = items.getOrNull(centerIndex) ?: items.first()
+            if (item != selectedItem) {
+                onItemSelected(item)
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .height(itemHeight * visibleCount)
+            .width(100.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Center selection highlight box
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeight),
+            shape = RoundedCornerShape(14.dp),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.5.dp,
+                androidx.compose.material3.MaterialTheme.colorScheme.primary
+            )
+        ) {}
+
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(vertical = itemHeight * 2),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(items) { index, itemValue ->
+                val isSelected = itemValue == selectedItem
+                Box(
+                    modifier = Modifier
+                        .height(itemHeight)
+                        .fillMaxWidth()
+                        .clickable {
+                            onItemSelected(itemValue)
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(index)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$itemValue $unitLabel",
+                        fontSize = if (isSelected) 22.sp else 15.sp,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                        color = if (isSelected)
+                            androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            TextMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpressiveWheelTimePickerDialog(
     initialMinutes: Int,
     onDismiss: () -> Unit,
     onTimeSelected: (Int) -> Unit
 ) {
-    val initialHour = (initialMinutes / 60) % 24
-    val initialMin = initialMinutes % 60
-    val timePickerState = rememberTimePickerState(
-        initialHour = initialHour,
-        initialMinute = initialMin,
-        is24Hour = false
-    )
-    var isKeyboardInput by remember { mutableStateOf(false) }
+    var selectedHours by remember { mutableIntStateOf((initialMinutes / 60).coerceIn(0, 23)) }
+    var selectedMins by remember { mutableIntStateOf(initialMinutes % 60) }
+
+    val presetTemplates = listOf(1, 2, 5, 10, 15, 30, 60, 120)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
-                    val selectedMinutes = timePickerState.hour * 60 + timePickerState.minute
-                    onTimeSelected(if (selectedMinutes > 0) selectedMinutes else 5)
+                    val totalMins = selectedHours * 60 + selectedMins
+                    onTimeSelected(if (totalMins > 0) totalMins else 1)
                     onDismiss()
-                }
+                },
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                )
             ) {
-                Text("OK", fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                Text("Confirm", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                Text("Cancel", color = TextSecondary)
             }
         },
         title = {
-            Text(
-                text = "Select time",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column {
+                Text(
+                    text = "Select Time Limit",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Scroll wheel or pick a quick template",
+                    fontSize = 12.sp,
+                    color = TextSecondary
+                )
+            }
         },
         text = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (isKeyboardInput) {
-                    TimeInput(state = timePickerState)
-                } else {
-                    TimePicker(state = timePickerState)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
+                // Quick Presets Row
+                Text(
+                    text = "QUICK TEMPLATES",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = TextMuted,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(bottom = 8.dp)
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 ) {
-                    IconButton(
-                        onClick = { isKeyboardInput = !isKeyboardInput }
+                    items(presetTemplates) { mins ->
+                        val label = when {
+                            mins < 60 -> "${mins}m"
+                            mins % 60 == 0 -> "${mins / 60}h"
+                            else -> "${mins / 60}h ${mins % 60}m"
+                        }
+                        val isSelected = (selectedHours * 60 + selectedMins) == mins
+                        Surface(
+                            onClick = {
+                                selectedHours = mins / 60
+                                selectedMins = mins % 60
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else SurfaceContainerHigh
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimary else TextPrimary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Wheel Columns Container
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = SurfaceContainerHigh
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = if (isKeyboardInput) Icons.Default.Schedule else Icons.Default.Keyboard,
-                            contentDescription = if (isKeyboardInput) "Switch to dial picker" else "Switch to keyboard input",
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                        // Hours Wheel
+                        WheelPickerColumn(
+                            items = (0..23).toList(),
+                            selectedItem = selectedHours,
+                            unitLabel = "hrs",
+                            onItemSelected = { selectedHours = it }
+                        )
+
+                        Text(
+                            text = ":",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                        )
+
+                        // Minutes Wheel
+                        WheelPickerColumn(
+                            items = (0..59).toList(),
+                            selectedItem = selectedMins,
+                            unitLabel = "mins",
+                            onItemSelected = { selectedMins = it }
                         )
                     }
                 }
             }
         },
-        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        containerColor = SurfaceContainer,
         shape = RoundedCornerShape(28.dp)
     )
 }

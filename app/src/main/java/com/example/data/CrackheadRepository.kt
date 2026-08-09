@@ -28,41 +28,6 @@ class CrackheadRepository(context: Context) {
         syncInstalledApps(context)
         syncRealUsageStats(context)
 
-        val currentApps = allApps.first()
-        if (currentApps.none { it.isMonitored } && currentApps.isNotEmpty()) {
-            val autoMonitorList = currentApps.filter {
-                it.category == "Social" || it.category == "Video" || it.category == "Games"
-            }.take(3)
-            val toMonitor = if (autoMonitorList.isNotEmpty()) autoMonitorList else currentApps.take(2)
-            for (app in toMonitor) {
-                appDao.setMonitored(app.packageName, true)
-            }
-        }
-
-        val existingRules = allRules.first()
-        if (existingRules.isEmpty()) {
-            val monitoredList = allApps.first().filter { it.isMonitored }
-            val pkgs = if (monitoredList.isNotEmpty()) {
-                monitoredList.map { it.packageName }
-            } else {
-                currentApps.take(2).map { it.packageName }
-            }
-
-            if (pkgs.isNotEmpty()) {
-                val defaultRule = UsageRule(
-                    name = "Daily Usage Limit",
-                    appPackages = pkgs,
-                    limitType = "DAILY_TOTAL",
-                    limitMinutes = 60,
-                    combineMode = "OR",
-                    graceWarningEnabled = true,
-                    cooldownMinutes = 60,
-                    isEnabled = true
-                )
-                ruleDao.insertRule(defaultRule)
-            }
-        }
-
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val existingSummary = summaryDao.getSummarySync(todayStr)
         if (existingSummary == null) {
@@ -123,13 +88,24 @@ class CrackheadRepository(context: Context) {
                 }
             }
 
-            // Remove uninstalled apps from DB if they were not installed on device and not monitored
+            // Remove any app from DB that is not physically installed on the device
             if (installedPackages.isNotEmpty()) {
                 val toRemove = existingAppsMap.values.filter {
-                    !installedPackages.contains(it.packageName) && !it.isMonitored
+                    !installedPackages.contains(it.packageName)
                 }
                 for (uninstalled in toRemove) {
                     appDao.deleteAppByPackage(uninstalled.packageName)
+                }
+
+                // Clean up rules referencing uninstalled packages
+                val currentRules = allRules.first()
+                for (rule in currentRules) {
+                    val validPkgs = rule.appPackages.filter { installedPackages.contains(it) }
+                    if (validPkgs.isEmpty()) {
+                        ruleDao.deleteRule(rule)
+                    } else if (validPkgs.size != rule.appPackages.size) {
+                        ruleDao.updateRule(rule.copy(appPackages = validPkgs))
+                    }
                 }
             }
 

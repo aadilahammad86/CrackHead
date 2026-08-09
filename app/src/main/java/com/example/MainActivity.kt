@@ -114,6 +114,7 @@ fun CrackheadMainApp(
     initialTab: String
 ) {
     var currentScreen by remember { mutableStateOf(if (initialTab == "insights") "insights" else "home") }
+    var previousScreen by remember { mutableStateOf("home") }
     var selectedAppForSheet by remember { mutableStateOf<MonitoredApp?>(null) }
     var editingRule by remember { mutableStateOf<UsageRule?>(null) }
 
@@ -151,12 +152,16 @@ fun CrackheadMainApp(
                     monitoredApps = monitoredApps,
                     summary = todaySummary,
                     onNavigateToSettings = { currentScreen = "settings" },
-                    onNavigateToManageApps = { currentScreen = "select_apps" },
+                    onNavigateToManageApps = {
+                        previousScreen = "home"
+                        currentScreen = "select_apps"
+                    },
                     onNavigateToNewRule = {
                         editingRule = null
+                        previousScreen = "home"
                         val defaultPkgs = monitoredApps.map { it.packageName }.take(2).ifEmpty { allApps.map { it.packageName }.take(2) }
                         viewModel.setSelectedRuleApps(defaultPkgs)
-                        currentScreen = "new_rule"
+                        currentScreen = "select_apps"
                     },
                     onAppClick = { app -> selectedAppForSheet = app }
                 )
@@ -173,9 +178,10 @@ fun CrackheadMainApp(
                     },
                     onNewRule = {
                         editingRule = null
+                        previousScreen = "rules"
                         val defaultPkgs = monitoredApps.map { it.packageName }.take(2).ifEmpty { allApps.map { it.packageName }.take(2) }
                         viewModel.setSelectedRuleApps(defaultPkgs)
-                        currentScreen = "new_rule"
+                        currentScreen = "select_apps"
                     }
                 )
 
@@ -184,7 +190,7 @@ fun CrackheadMainApp(
                     selectedPackages = selectedRuleApps,
                     onTogglePackage = { pkg -> viewModel.toggleAppInRuleSelection(pkg) },
                     onRefreshApps = { viewModel.refreshDeviceApps() },
-                    onBack = { currentScreen = "home" },
+                    onBack = { currentScreen = if (editingRule != null) "new_rule" else previousScreen },
                     onContinue = { currentScreen = "new_rule" }
                 )
 
@@ -195,12 +201,12 @@ fun CrackheadMainApp(
                     onOpenAppPicker = { currentScreen = "select_apps" },
                     onBack = {
                         editingRule = null
-                        currentScreen = "rules"
+                        currentScreen = previousScreen
                     },
                     onSaveRule = { rule ->
                         viewModel.saveRule(rule)
                         editingRule = null
-                        currentScreen = "rules"
+                        currentScreen = previousScreen
                     }
                 )
 
