@@ -8,7 +8,8 @@ import java.util.Date
 import java.util.Locale
 
 class CrackheadRepository(context: Context) {
-    private val db = CrackheadDatabase.getDatabase(context)
+    private val appContext = context.applicationContext
+    private val db = CrackheadDatabase.getDatabase(appContext)
     val appDao = db.appDao()
     val ruleDao = db.ruleDao()
     val logDao = db.logDao()
@@ -18,6 +19,23 @@ class CrackheadRepository(context: Context) {
     val monitoredApps: Flow<List<MonitoredApp>> = appDao.getMonitoredApps()
     val allRules: Flow<List<UsageRule>> = ruleDao.getAllRules()
     val recentLogs: Flow<List<BlockLog>> = logDao.getRecentLogs()
+
+    fun getSystemUsageToday(packageName: String): Long {
+        try {
+            val usm = appContext.getSystemService(Context.USAGE_STATS_SERVICE) as? android.app.usage.UsageStatsManager ?: return 0L
+            val cal = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+            val statsMap = usm.queryAndAggregateUsageStats(cal.timeInMillis, System.currentTimeMillis())
+            val stat = statsMap?.get(packageName)
+            return (stat?.totalTimeInForeground ?: 0L) / 1000L
+        } catch (e: Exception) {
+            return 0L
+        }
+    }
 
     fun getTodaySummary(): Flow<DailySummary?> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -138,11 +156,16 @@ class CrackheadRepository(context: Context) {
             val updatedApps = currentApps.map { app ->
                 val stat = statsMap?.get(app.packageName)
                 if (stat != null && stat.totalTimeInForeground > 0) {
-                    val usageSec = stat.totalTimeInForeground / 1000L
+                    val systemUsageSec = stat.totalTimeInForeground / 1000L
+                    val effectiveBaseline = if (systemUsageSec < app.baselineUsageSeconds) 0L else app.baselineUsageSeconds
+                    val monitoredUsage = maxOf(0L, systemUsageSec - effectiveBaseline)
                     if (app.isMonitored) {
-                        totalScreenTimeSec += maxOf(app.dailyUsageSeconds, usageSec)
+                        totalScreenTimeSec += maxOf(app.dailyUsageSeconds, monitoredUsage)
                     }
-                    app.copy(dailyUsageSeconds = maxOf(app.dailyUsageSeconds, usageSec))
+                    app.copy(
+                        baselineUsageSeconds = effectiveBaseline,
+                        dailyUsageSeconds = maxOf(app.dailyUsageSeconds, monitoredUsage)
+                    )
                 } else {
                     if (app.isMonitored) {
                         totalScreenTimeSec += app.dailyUsageSeconds
@@ -170,12 +193,8 @@ class CrackheadRepository(context: Context) {
 
             for (app in allAppsList) {
                 val appRules = rules.filter { it.isEnabled && it.appPackages.contains(app.packageName) }
-                val isNowMonitored = appRules.isNotEmpty()
 
                 if (appRules.isNotEmpty()) {
-                    val dailyRule = appRules.find { it.limitType == "DAILY_TOTAL" }
-                    val sessionRule = appRules.find { it.limitType == "SINGLE_SESSION" }
-
                     val newDailyLimit = appRules.map { it.dailyLimitMinutes }.minOrNull()
                         ?: app.dailyLimitMinutes
 
@@ -207,7 +226,20 @@ class CrackheadRepository(context: Context) {
     }
 
     suspend fun toggleAppMonitored(packageName: String, isMonitored: Boolean) {
-        appDao.setMonitored(packageName, isMonitored)
+        val app = appDao.getAppByPackage(packageName)
+        if (app != null) {
+            val currentSystemSec = if (isMonitored) getSystemUsageToday(packageName) else app.baselineUsageSeconds
+            appDao.insertOrUpdateApp(
+                app.copy(
+                    isMonitored = isMonitored,
+                    dailyUsageSeconds = if (isMonitored) 0L else app.dailyUsageSeconds,
+                    currentSessionSeconds = 0L,
+                    isBlocked = if (!isMonitored) false else app.isBlocked,
+                    cooldownStartTimestamp = if (!isMonitored) 0L else app.cooldownStartTimestamp,
+                    baselineUsageSeconds = currentSystemSec
+                )
+            )
+        }
     }
 
     suspend fun saveRule(rule: UsageRule): Long {
@@ -217,6 +249,24 @@ class CrackheadRepository(context: Context) {
             ruleDao.updateRule(rule)
             rule.id
         }
+
+        // Clean slate & baseline offset for all target apps when rule is created or edited
+        for (pkg in rule.appPackages) {
+            val app = appDao.getAppByPackage(pkg)
+            if (app != null) {
+                val currentSystemSec = getSystemUsageToday(pkg)
+                appDao.insertOrUpdateApp(
+                    app.copy(
+                        dailyUsageSeconds = 0L,
+                        currentSessionSeconds = 0L,
+                        isBlocked = false,
+                        cooldownStartTimestamp = 0L,
+                        baselineUsageSeconds = currentSystemSec
+                    )
+                )
+            }
+        }
+
         syncMonitoredAppsWithRules()
 
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())

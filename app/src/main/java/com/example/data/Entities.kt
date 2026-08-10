@@ -17,7 +17,8 @@ data class MonitoredApp(
     val isMonitored: Boolean = true,
     val isBlocked: Boolean = false,
     val cooldownStartTimestamp: Long = 0,
-    val cooldownDurationMinutes: Int = 60
+    val cooldownDurationMinutes: Int = 60,
+    val baselineUsageSeconds: Long = 0
 ) {
     val remainingCooldownSeconds: Long
         get() {
