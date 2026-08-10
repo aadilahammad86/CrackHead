@@ -163,27 +163,104 @@ app/src/main/java/com/example/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Clone & Build Guide)
 
-### Prerequisites
-* **Android Studio**: Ladybug (2024.2.1+) or newer
-* **JDK**: Version 17+
-* **Min SDK**: API Level 26 (Android 8.0 Oreo)
-* **Target SDK**: API Level 34 (Android 14)
+This section provides a beginner-friendly, step-by-step guide for developers testing or building the app themselves.
 
-### Building from Source
+---
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/your-username/crackhead-android.git
-   cd crackhead-android
-   ```
+### 📋 Prerequisites
 
-2. **Open in Android Studio**:
-   Open Android Studio and select `Open an existing project`, then select the cloned directory.
+Before you start, make sure you have:
+* **Git**: Installed on your system ([git-scm.com](https://git-scm.com/))
+* **JDK 17+**: Java Development Kit 17 or higher
+* **Android SDK**: Installed via Android Studio or standalone Command Line Tools
+* **Min Android Device OS**: Android 8.0 (API Level 26) or newer
 
-3. **Build & Run**:
-   Connect an Android device (or launch an emulator) and click **Run 'app'** (`Shift + F10`).
+---
+
+### 📦 1. Clone the Repository
+
+Open your terminal or command prompt and clone the project:
+
+```bash
+git clone https://github.com/your-username/crackhead-android.git
+cd crackhead-android
+```
+
+---
+
+### 🛠️ 2. Build Universal APKs (CLI & Android Studio)
+
+#### Method A: Using Command Line (Terminal / CMD)
+
+You can build universal APK files directly without opening Android Studio.
+
+* **Build Universal Debug APK (Recommended for Testing):**
+  ```bash
+  # Linux / macOS
+  gradle :app:assembleDebug
+
+  # Or if using Gradle Wrapper (if present)
+  ./gradlew :app:assembleDebug
+
+  # Windows (Command Prompt)
+  gradlew :app:assembleDebug
+  ```
+
+* **Build Universal Release APK:**
+  ```bash
+  gradle :app:assembleRelease
+  ```
+
+#### Method B: Using Android Studio
+
+1. Launch **Android Studio**.
+2. Select **Open** and select the `crackhead-android` folder.
+3. Wait for Gradle sync to complete.
+4. From the top menu, go to **Build ➔ Build Bundle(s) / APK(s) ➔ Build APK(s)**.
+
+---
+
+### 📂 3. Locate Your Built APK Output
+
+Once the build finishes, your compiled APK files are saved in the project output directories:
+
+* **Universal Debug APK Location**:
+  `app/build/outputs/apk/debug/app-debug.apk`
+* **Universal Release APK Location**:
+  `app/build/outputs/apk/release/app-release.apk`
+
+---
+
+### 📲 4. Install & Test on Your Android Device
+
+#### Option 1: Via ADB (Android Debug Bridge)
+Connect your phone with **USB Debugging** enabled and run:
+```bash
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+#### Option 2: Direct File Transfer
+1. Copy `app-debug.apk` to your phone via USB cable, Google Drive, or messaging apps.
+2. On your Android phone, open your **File Manager** app.
+3. Tap `app-debug.apk` and approve **Install Unknown Apps** permissions if prompted.
+
+---
+
+### ⚠️ Troubleshooting: Why GitHub Release APKs Might Not Reflect Latest Changes
+
+If you download a newly generated release APK from GitHub Releases or GitHub Actions and it **fails to install** or **does not reflect the latest UI changes**, check these common causes:
+
+1. 🔐 **App Signature Mismatch (Most Common)**:
+   * **Cause**: Automatic GitHub Actions releases generate temporary signing keystores per workflow run. If you previously installed an older build, Android OS strictly blocks updating over it due to signature mismatch.
+   * **Fix**: **Uninstall the existing Crackhead app** from your Android phone completely, then install the newly downloaded release APK.
+
+2. 🔢 **Version Code Not Incremented**:
+   * **Cause**: Android OS requires a higher `versionCode` in `app/build.gradle.kts` to acknowledge a newer version over an older one.
+   * **Fix**: Ensure `versionCode` is incremented (e.g., from `1` to `2`) when pushing new releases.
+
+---
 
 ---
 

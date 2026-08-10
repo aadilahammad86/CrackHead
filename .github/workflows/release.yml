@@ -7,6 +7,7 @@ on:
       - 'v*'
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -28,42 +29,74 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Generate Release Keystore
+      - name: Prepare Signing Keystore
         run: |
-          keytool -genkeypair -v \
-            -keystore my-upload-key.jks \
-            -alias upload \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass android \
-            -keypass android \
-            -dname "CN=FocusGuard,O=DigitalWellbeing,C=US"
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release-key.jks
+            echo "KEYSTORE_FILE=release-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASS=${{ secrets.RELEASE_STORE_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_PASS=${{ secrets.RELEASE_KEY_PASSWORD }}" >> $GITHUB_ENV
+            echo "KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> $GITHUB_ENV
+          elif [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > release-key.jks
+            echo "KEYSTORE_FILE=release-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASS=android" >> $GITHUB_ENV
+            echo "KEY_PASS=android" >> $GITHUB_ENV
+            echo "KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+          else
+            keytool -genkeypair -v \
+              -keystore release-key.jks \
+              -alias upload \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=FocusGuard,O=DigitalWellbeing,C=US"
+            echo "KEYSTORE_FILE=release-key.jks" >> $GITHUB_ENV
+            echo "STORE_PASS=android" >> $GITHUB_ENV
+            echo "KEY_PASS=android" >> $GITHUB_ENV
+            echo "KEY_ALIAS=upload" >> $GITHUB_ENV
+          fi
 
-      - name: Build Release APK
+      - name: Build Universal Release APK
         run: gradle :app:assembleRelease --no-configuration-cache
         env:
-          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: android
-          KEY_PASSWORD: android
+          KEYSTORE_PATH: ${{ github.workspace }}/${{ env.KEYSTORE_FILE }}
+          STORE_PASSWORD: ${{ env.STORE_PASS }}
+          KEY_PASSWORD: ${{ env.KEY_PASS }}
 
-      - name: Prepare APK Output
+      - name: Build Universal Debug APK
+        run: gradle :app:assembleDebug --no-configuration-cache
+
+      - name: Prepare APK Outputs
         run: |
-          cp app/build/outputs/apk/release/app-release.apk CrackHead.apk || cp app/build/outputs/apk/release/app-release-unsigned.apk CrackHead.apk
+          mkdir -p outputs
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk outputs/Crackhead-Universal-Release.apk
+          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp app/build/outputs/apk/release/app-release-unsigned.apk outputs/Crackhead-Universal-Release.apk
+          fi
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk outputs/Crackhead-Universal-Debug.apk
+          fi
 
-      - name: Upload APK as Workflow Artifact
+      - name: Upload APKs as Workflow Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CrackHead-APK
-          path: CrackHead.apk
+          name: Crackhead-APKs
+          path: outputs/*
 
       - name: Upload APK to GitHub Release
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: CrackHead.apk
+          files: |
+            outputs/Crackhead-Universal-Release.apk
+            outputs/Crackhead-Universal-Debug.apk
           tag_name: ${{ github.event.release.tag_name || github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
