@@ -185,7 +185,7 @@ fun CrackheadMainApp(
     val sheetState = rememberModalBottomSheetState()
 
     val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
-    val appBgColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
+    val appBgColor = androidx.compose.material3.MaterialTheme.colorScheme.background
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

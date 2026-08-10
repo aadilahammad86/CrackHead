@@ -65,22 +65,10 @@ import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.StatusGreen
+import com.example.ui.theme.StatusGreenBg
+import com.example.ui.theme.StatusGreenBorder
 import com.example.util.PermissionUtils
-
-import androidx.compose.runtime.ReadOnlyComposable
-
-val StatusGreen: Color
-    @Composable
-    @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiary
-val StatusGreenBg: Color
-    @Composable
-    @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiaryContainer
-val StatusGreenBorder: Color
-    @Composable
-    @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiary
 
 @Composable
 fun PermissionRequestScreen(

@@ -45,6 +45,7 @@ val VibrantPalette = darkColorScheme(
   onSurface = Color(0xFFE6E0E9),
   surfaceVariant = Color(0xFF49454F),
   onSurfaceVariant = Color(0xFFCAC4D0),
+  surfaceContainerLowest = Color(0xFF0F0D13),
   surfaceContainerLow = Color(0xFF1D1B20),
   surfaceContainer = Color(0xFF211F26),
   surfaceContainerHigh = Color(0xFF2B2930),
@@ -52,7 +53,9 @@ val VibrantPalette = darkColorScheme(
   outline = Color(0xFF938F99),
   outlineVariant = Color(0xFF49454F),
   error = CooldownRed,
-  onError = Color.White
+  onError = Color.White,
+  errorContainer = CooldownRedBg,
+  onErrorContainer = CooldownRed
 )
 
 val LightVibrantPalette = lightColorScheme(
@@ -64,7 +67,7 @@ val LightVibrantPalette = lightColorScheme(
   onSecondary = Color.White,
   secondaryContainer = Color(0xFFE8DEF8),
   onSecondaryContainer = Color(0xFF1D192B),
-  tertiary = Color(0xFF386A20),
+  tertiary = Color(0xFF2E6C00),
   onTertiary = Color.White,
   tertiaryContainer = Color(0xFFB7F397),
   onTertiaryContainer = Color(0xFF042100),
@@ -74,14 +77,17 @@ val LightVibrantPalette = lightColorScheme(
   onSurface = Color(0xFF1D1B20),
   surfaceVariant = Color(0xFFEAE7F0),
   onSurfaceVariant = Color(0xFF49454F),
-  surfaceContainerLow = Color(0xFFFFFFFF),
-  surfaceContainer = Color(0xFFFFFFFF),
-  surfaceContainerHigh = Color(0xFFF0EEF5),
-  surfaceContainerHighest = Color(0xFFE5E2EA),
+  surfaceContainerLowest = Color(0xFFFFFFFF),
+  surfaceContainerLow = Color(0xFFF3EFF7),
+  surfaceContainer = Color(0xFFEDE7F2),
+  surfaceContainerHigh = Color(0xFFE7E0ED),
+  surfaceContainerHighest = Color(0xFFE1DAE7),
   outline = Color(0xFF79747E),
-  outlineVariant = Color(0xFFCAC4D0),
+  outlineVariant = Color(0xFFC9C3D0),
   error = CooldownRed,
-  onError = Color.White
+  onError = Color.White,
+  errorContainer = Color(0xFFFFDAD6),
+  onErrorContainer = Color(0xFF410002)
 )
 
 @Composable

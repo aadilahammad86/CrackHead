@@ -55,6 +55,9 @@ import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.StatusGreen
+import com.example.ui.theme.StatusGreenBg
+import com.example.ui.theme.StatusGreenBorder
 import androidx.compose.foundation.BorderStroke
 
 import androidx.compose.animation.animateColorAsState

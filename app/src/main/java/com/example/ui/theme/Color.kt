@@ -112,7 +112,28 @@ val OnPrimaryContainer: Color
 val CardBorderColor: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.outline
+    get() = MaterialTheme.colorScheme.outlineVariant
+
+// Centralized Semantic State Tokens
+val StatusGreen: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiary
+
+val StatusGreenBg: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiaryContainer
+
+val StatusGreenBorder: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+
+val StatusGreenContent: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.onTertiaryContainer
 
 val AppIconColors = listOf(
     Color(0xFFE53935), // Red
