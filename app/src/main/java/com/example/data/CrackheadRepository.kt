@@ -139,9 +139,14 @@ class CrackheadRepository(context: Context) {
                 val stat = statsMap?.get(app.packageName)
                 if (stat != null && stat.totalTimeInForeground > 0) {
                     val usageSec = stat.totalTimeInForeground / 1000L
-                    totalScreenTimeSec += usageSec
+                    if (app.isMonitored) {
+                        totalScreenTimeSec += maxOf(app.dailyUsageSeconds, usageSec)
+                    }
                     app.copy(dailyUsageSeconds = maxOf(app.dailyUsageSeconds, usageSec))
                 } else {
+                    if (app.isMonitored) {
+                        totalScreenTimeSec += app.dailyUsageSeconds
+                    }
                     app
                 }
             }
@@ -150,7 +155,7 @@ class CrackheadRepository(context: Context) {
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val summary = summaryDao.getSummarySync(todayStr) ?: DailySummary(todayStr)
             summaryDao.insertOrUpdateSummary(
-                summary.copy(totalScreenTimeSeconds = maxOf(summary.totalScreenTimeSeconds, totalScreenTimeSec))
+                summary.copy(totalScreenTimeSeconds = totalScreenTimeSec)
             )
         } catch (e: Exception) {
             e.printStackTrace()

@@ -124,12 +124,12 @@ fun HomeScreen(
 
             // Hero Screen Time Card
             item {
-                val totalUsedSec = summary?.totalScreenTimeSeconds ?: 0L
+                val totalUsedSec = if (monitoredApps.isEmpty()) 0L else (summary?.totalScreenTimeSeconds ?: 0L)
                 val usedHours = totalUsedSec / 3600
                 val usedMins = (totalUsedSec % 3600) / 60
                 val totalLimitMins = monitoredApps.sumOf { it.dailyLimitMinutes }.coerceAtLeast(60)
                 val limitHours = (totalLimitMins + 59) / 60
-                val percent = ((totalUsedSec.toFloat() / (totalLimitMins * 60f)) * 100).toInt().coerceIn(0, 100)
+                val percent = if (monitoredApps.isEmpty() || totalLimitMins == 0) 0 else ((totalUsedSec.toFloat() / (totalLimitMins * 60f)) * 100).toInt().coerceIn(0, 100)
 
                 val heroBgStart = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
                 val heroBgEnd = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer
