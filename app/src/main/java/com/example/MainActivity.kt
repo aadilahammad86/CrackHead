@@ -203,7 +203,6 @@ fun CrackheadMainApp(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .statusBarsPadding()
         ) {
             when (currentScreen) {
                 "home" -> HomeScreen(
@@ -435,7 +434,6 @@ fun CrackheadBottomBar(
 
     NavigationBar(
         containerColor = containerColor,
-        modifier = Modifier.navigationBarsPadding(),
         tonalElevation = 8.dp
     ) {
         items.forEach { item ->
