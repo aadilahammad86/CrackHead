@@ -30,14 +30,17 @@ jobs:
 
       - name: Prepare Signing Keystore
         run: |
+          if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          fi
           if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > release-key.jks
             echo "KEYSTORE_FILE=release-key.jks" >> $GITHUB_ENV
             echo "STORE_PASS=${{ secrets.RELEASE_STORE_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_PASS=${{ secrets.RELEASE_KEY_PASSWORD }}" >> $GITHUB_ENV
             echo "KEY_ALIAS=${{ secrets.RELEASE_KEY_ALIAS }}" >> $GITHUB_ENV
-          elif [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > release-key.jks
+          elif [ -f debug.keystore ]; then
+            cp debug.keystore release-key.jks
             echo "KEYSTORE_FILE=release-key.jks" >> $GITHUB_ENV
             echo "STORE_PASS=android" >> $GITHUB_ENV
             echo "KEY_PASS=android" >> $GITHUB_ENV

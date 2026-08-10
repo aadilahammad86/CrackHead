@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.util.Base64
 
 plugins {
   alias(libs.plugins.android.application)
@@ -26,16 +27,31 @@ android {
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val ksFile = file(keystorePath)
+      if (ksFile.exists()) {
+        storeFile = ksFile
+        storePassword = System.getenv("STORE_PASSWORD") ?: "android"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+        keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+      }
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      val dbgFile = file("${rootDir}/debug.keystore")
+      val base64File = file("${rootDir}/debug.keystore.base64")
+      if (!dbgFile.exists() && base64File.exists()) {
+        try {
+          val decoded = Base64.getDecoder().decode(base64File.readText().trim())
+          dbgFile.writeBytes(decoded)
+        } catch (e: Exception) {
+          e.printStackTrace()
+        }
+      }
+      if (dbgFile.exists()) {
+        storeFile = dbgFile
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -44,9 +60,21 @@ android {
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      val relConfig = signingConfigs.findByName("release")
+      if (relConfig?.storeFile?.exists() == true) {
+        signingConfig = relConfig
+      } else {
+        signingConfig = signingConfigs.getByName("debug")
+      }
     }
-    debug { signingConfig = signingConfigs.getByName("debugConfig") }
+    debug {
+      val dbgConfig = signingConfigs.findByName("debugConfig")
+      if (dbgConfig?.storeFile?.exists() == true) {
+        signingConfig = dbgConfig
+      } else {
+        signingConfig = signingConfigs.getByName("debug")
+      }
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
