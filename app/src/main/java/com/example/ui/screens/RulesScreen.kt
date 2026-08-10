@@ -44,11 +44,14 @@ import com.example.data.UsageRule
 import com.example.ui.theme.AccentLavender
 import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun RulesScreen(
@@ -59,11 +62,7 @@ fun RulesScreen(
     onEditRule: (UsageRule) -> Unit,
     onNewRule: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -146,7 +145,8 @@ fun RuleCard(
             .fillMaxWidth()
             .clickable { onEdit() },
         shape = RoundedCornerShape(20.dp),
-        color = SurfaceContainer
+        color = SurfaceContainer,
+        border = BorderStroke(1.dp, ExpressiveCardBorder)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)

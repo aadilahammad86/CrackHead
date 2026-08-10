@@ -31,20 +31,24 @@ val VibrantPalette = darkColorScheme(
   onPrimary = Color(0xFF380066),
   primaryContainer = Color(0xFF4F378B),
   onPrimaryContainer = Color(0xFFEADDFF),
-  secondary = Color(0xFF70D2FF),
-  onSecondary = Color(0xFF003547),
-  secondaryContainer = Color(0xFF004D65),
-  onSecondaryContainer = Color(0xFFC2E8FF),
-  tertiary = Color(0xFFB8F349),
-  onTertiary = Color(0xFF263500),
-  tertiaryContainer = Color(0xFF394D00),
-  onTertiaryContainer = Color(0xFFD4FF70),
-  background = Color(0xFF0D0B14),
-  onBackground = Color(0xFFE6E1E9),
-  surface = Color(0xFF181524),
-  onSurface = Color(0xFFE6E1E9),
-  surfaceVariant = Color(0xFF262135),
+  secondary = Color(0xFFCCC2DC),
+  onSecondary = Color(0xFF332D41),
+  secondaryContainer = Color(0xFF4A4458),
+  onSecondaryContainer = Color(0xFFE8DEF8),
+  tertiary = Color(0xFF9CD67D),
+  onTertiary = Color(0xFF0C3800),
+  tertiaryContainer = Color(0xFF205107),
+  onTertiaryContainer = Color(0xFFB7F397),
+  background = Color(0xFF141218),
+  onBackground = Color(0xFFE6E0E9),
+  surface = Color(0xFF141218),
+  onSurface = Color(0xFFE6E0E9),
+  surfaceVariant = Color(0xFF49454F),
   onSurfaceVariant = Color(0xFFCAC4D0),
+  surfaceContainerLow = Color(0xFF1D1B20),
+  surfaceContainer = Color(0xFF211F26),
+  surfaceContainerHigh = Color(0xFF2B2930),
+  surfaceContainerHighest = Color(0xFF36343B),
   outline = Color(0xFF938F99),
   outlineVariant = Color(0xFF49454F),
   error = CooldownRed,
@@ -56,20 +60,24 @@ val LightVibrantPalette = lightColorScheme(
   onPrimary = Color.White,
   primaryContainer = Color(0xFFEADDFF),
   onPrimaryContainer = Color(0xFF21005D),
-  secondary = Color(0xFF006875),
+  secondary = Color(0xFF625B71),
   onSecondary = Color.White,
-  secondaryContainer = Color(0xFFADECFF),
-  onSecondaryContainer = Color(0xFF001F26),
-  tertiary = Color(0xFF4C6600),
+  secondaryContainer = Color(0xFFE8DEF8),
+  onSecondaryContainer = Color(0xFF1D192B),
+  tertiary = Color(0xFF386A20),
   onTertiary = Color.White,
-  tertiaryContainer = Color(0xFFC6F16D),
-  onTertiaryContainer = Color(0xFF141F00),
-  background = Color(0xFFFEF7FF),
+  tertiaryContainer = Color(0xFFB7F397),
+  onTertiaryContainer = Color(0xFF042100),
+  background = Color(0xFFF7F5FA),
   onBackground = Color(0xFF1D1B20),
-  surface = Color(0xFFFAF7FC),
+  surface = Color(0xFFF7F5FA),
   onSurface = Color(0xFF1D1B20),
-  surfaceVariant = Color(0xFFE7E0EC),
+  surfaceVariant = Color(0xFFEAE7F0),
   onSurfaceVariant = Color(0xFF49454F),
+  surfaceContainerLow = Color(0xFFFFFFFF),
+  surfaceContainer = Color(0xFFFFFFFF),
+  surfaceContainerHigh = Color(0xFFF0EEF5),
+  surfaceContainerHighest = Color(0xFFE5E2EA),
   outline = Color(0xFF79747E),
   outlineVariant = Color(0xFFCAC4D0),
   error = CooldownRed,
@@ -115,7 +123,7 @@ fun ColorScheme.animateColors(durationMillis: Int = 400): ColorScheme {
 @Composable
 fun CrackheadTheme(
   themeMode: ThemeMode = ThemeMode.SYSTEM,
-  colorSchemeSource: ColorSchemeSource = ColorSchemeSource.STATIC,
+  colorSchemeSource: ColorSchemeSource = ColorSchemeSource.DYNAMIC,
   content: @Composable () -> Unit,
 ) {
   val darkTheme = when (themeMode) {
@@ -124,9 +132,12 @@ fun CrackheadTheme(
     ThemeMode.LIGHT -> false
   }
 
+  // System Theme mode always follows dynamic M3 wallpaper-based color scheme
+  val effectiveSource = if (themeMode == ThemeMode.SYSTEM) ColorSchemeSource.DYNAMIC else colorSchemeSource
+
   val context = LocalContext.current
   val targetColors = when {
-    colorSchemeSource == ColorSchemeSource.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+    effectiveSource == ColorSchemeSource.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
       if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     }
     darkTheme -> VibrantPalette

@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CrackheadTheme
+import com.example.ui.theme.ExpressiveBackground
 import kotlinx.coroutines.delay
 
 class CooldownActivity : ComponentActivity() {
@@ -118,22 +119,14 @@ fun CooldownScreen(
     val secondsPart = remainingSeconds % 60
     val timeFormatted = String.format("%02d:%02d", minutesPart, secondsPart)
 
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            com.example.ui.theme.DarkCanvas,
-            com.example.ui.theme.SurfaceContainerHigh,
-            com.example.ui.theme.DarkCanvas
-        )
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundGradient)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(24.dp)
-    ) {
+    ExpressiveBackground {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(24.dp)
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -279,4 +272,5 @@ fun CooldownScreen(
             }
         }
     }
+}
 }

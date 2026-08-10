@@ -45,11 +45,14 @@ import com.example.data.MonitoredApp
 import com.example.ui.theme.AccentLavender
 import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.LaunchedEffect
@@ -81,11 +84,7 @@ fun SelectAppsScreen(
         it.category.contains(searchQuery, ignoreCase = true)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()

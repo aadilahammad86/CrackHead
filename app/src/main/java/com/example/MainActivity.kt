@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.MonitoredApp
@@ -184,10 +185,11 @@ fun CrackheadMainApp(
     val sheetState = rememberModalBottomSheetState()
 
     val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val appBgColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.background,
+        containerColor = appBgColor,
         bottomBar = {
             if (currentScreen in listOf("home", "rules", "insights", "settings")) {
                 CrackheadBottomBar(
@@ -421,7 +423,8 @@ fun CrackheadMainApp(
 @Composable
 fun CrackheadBottomBar(
     currentScreen: String,
-    onScreenSelected: (String) -> Unit
+    onScreenSelected: (String) -> Unit,
+    containerColor: androidx.compose.ui.graphics.Color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
 ) {
     val items = listOf(
         BottomNavItem("home", "Home", Icons.Filled.Home, Icons.Outlined.Home),
@@ -431,7 +434,7 @@ fun CrackheadBottomBar(
     )
 
     NavigationBar(
-        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant,
+        containerColor = containerColor,
         modifier = Modifier.navigationBarsPadding(),
         tonalElevation = 8.dp
     ) {

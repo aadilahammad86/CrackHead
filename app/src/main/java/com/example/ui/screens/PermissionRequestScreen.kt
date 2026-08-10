@@ -57,16 +57,30 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
+import androidx.compose.foundation.BorderStroke
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.util.PermissionUtils
 
-val StatusGreen = Color(0xFF4CAF50)
-val StatusGreenBg = Color(0xFF1B3821)
-val StatusGreenBorder = Color(0xFF388E3C)
+import androidx.compose.runtime.ReadOnlyComposable
+
+val StatusGreen: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiary
+val StatusGreenBg: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiaryContainer
+val StatusGreenBorder: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.tertiary
 
 @Composable
 fun PermissionRequestScreen(
@@ -101,11 +115,7 @@ fun PermissionRequestScreen(
 
     val allRequiredGranted = isAccessibilityGranted && isUsageGranted
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -234,8 +244,8 @@ fun PermissionRequestScreen(
                     .height(54.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (allRequiredGranted) StatusGreen else MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
+                    containerColor = if (allRequiredGranted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    contentColor = if (allRequiredGranted) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Row(
@@ -328,8 +338,8 @@ private fun PermissionCard(
                 if (isGranted) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = StatusGreenBg,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, StatusGreenBorder)
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -338,7 +348,7 @@ private fun PermissionCard(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = StatusGreen,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -346,7 +356,7 @@ private fun PermissionCard(
                                 text = "Enabled",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = StatusGreen
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                         }
                     }

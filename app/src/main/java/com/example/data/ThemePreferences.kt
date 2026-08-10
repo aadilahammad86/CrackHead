@@ -22,11 +22,11 @@ class ThemePreferences(context: Context) {
 
     var colorSchemeSource: ColorSchemeSource
         get() {
-            val name = prefs.getString("color_scheme_source", ColorSchemeSource.STATIC.name) ?: ColorSchemeSource.STATIC.name
+            val name = prefs.getString("color_scheme_source", ColorSchemeSource.DYNAMIC.name) ?: ColorSchemeSource.DYNAMIC.name
             return try {
                 ColorSchemeSource.valueOf(name)
             } catch (e: Exception) {
-                ColorSchemeSource.STATIC
+                ColorSchemeSource.DYNAMIC
             }
         }
         set(value) {

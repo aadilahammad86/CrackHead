@@ -61,11 +61,14 @@ import com.example.data.UsageRule
 import com.example.ui.theme.AccentLavender
 import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 import com.example.ui.dialogs.AppRuleConflict
 import com.example.ui.dialogs.RuleConflictDialog
@@ -96,11 +99,7 @@ fun NewRuleScreen(
     val minsPart = currentLimitMinutes % 60
     val timeFormatted = if (hoursPart > 0) "${hoursPart}h ${String.format("%02dm", minsPart)}" else "${minsPart}m"
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -713,7 +712,7 @@ fun WheelPickerColumn(
                 .fillMaxWidth()
                 .height(itemHeight),
             shape = RoundedCornerShape(14.dp),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
             border = androidx.compose.foundation.BorderStroke(
                 1.5.dp,
                 androidx.compose.material3.MaterialTheme.colorScheme.primary
@@ -745,7 +744,7 @@ fun WheelPickerColumn(
                         fontSize = if (isSelected) 22.sp else 15.sp,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                         color = if (isSelected)
-                            androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+                            androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
                         else
                             TextMuted
                     )

@@ -48,11 +48,14 @@ import com.example.ui.theme.AccentLavender
 import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.CooldownRed
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -104,11 +107,7 @@ fun SettingsScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,7 +130,8 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = SurfaceContainer
+                    color = SurfaceContainer,
+                    border = BorderStroke(1.dp, ExpressiveCardBorder)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -166,6 +166,7 @@ fun SettingsScreen(
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
                                 color = SurfaceContainerHigh,
+                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -239,6 +240,7 @@ fun SettingsScreen(
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
                                 color = SurfaceContainerHigh,
+                                border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -299,10 +301,12 @@ fun SettingsScreen(
 
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = if (colorSchemeSource == ColorSchemeSource.DYNAMIC)
+                                text = if (themeMode == ThemeMode.SYSTEM)
+                                    "System theme always uses Dynamic M3 wallpaper-based colors on Android 12+"
+                                else if (colorSchemeSource == ColorSchemeSource.DYNAMIC)
                                     "Dynamic color automatically adapts to system wallpaper on Android 12+"
                                 else
-                                    "Vibrant Palette applies neon purple, electric blue, and vivid lime accents",
+                                    "Static Vibrant applies high-contrast neon purple, electric blue, and vivid lime accents",
                                 fontSize = 12.sp,
                                 color = TextMuted,
                                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
@@ -317,7 +321,8 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = SurfaceContainer
+                    color = SurfaceContainer,
+                    border = BorderStroke(1.dp, ExpressiveCardBorder)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -349,6 +354,7 @@ fun SettingsScreen(
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = SurfaceContainerHigh,
+                            border = BorderStroke(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(

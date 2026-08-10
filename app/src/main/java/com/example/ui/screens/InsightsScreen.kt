@@ -39,22 +39,21 @@ import com.example.ui.theme.AccentLavender
 import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.CooldownRed
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun InsightsScreen(
     summary: DailySummary?,
     logs: List<BlockLog>
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -77,7 +76,8 @@ fun InsightsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    color = SurfaceContainer
+                    color = SurfaceContainer,
+                    border = BorderStroke(1.dp, ExpressiveCardBorder)
                 ) {
                     Row(
                         modifier = Modifier.padding(20.dp),
@@ -143,7 +143,8 @@ fun InsightsScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        color = SurfaceContainer
+                        color = SurfaceContainer,
+                        border = BorderStroke(1.dp, ExpressiveCardBorder)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),

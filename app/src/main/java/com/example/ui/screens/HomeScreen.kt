@@ -56,11 +56,14 @@ import com.example.ui.theme.CardGlowPrimaryEnd
 import com.example.ui.theme.CardGlowPrimaryStart
 import com.example.ui.theme.CooldownRed
 import com.example.ui.theme.DarkCanvas
+import com.example.ui.theme.ExpressiveBackground
+import com.example.ui.theme.ExpressiveCardBorder
 import com.example.ui.theme.SurfaceContainer
 import com.example.ui.theme.SurfaceContainerHigh
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun HomeScreen(
@@ -71,11 +74,7 @@ fun HomeScreen(
     onNavigateToNewRule: () -> Unit,
     onAppClick: (MonitoredApp) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DarkCanvas)
-    ) {
+    ExpressiveBackground {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,22 +130,17 @@ fun HomeScreen(
                 val limitHours = (totalLimitMins + 59) / 60
                 val percent = if (monitoredApps.isEmpty() || totalLimitMins == 0) 0 else ((totalUsedSec.toFloat() / (totalLimitMins * 60f)) * 100).toInt().coerceIn(0, 100)
 
-                val heroBgStart = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
-                val heroBgEnd = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer
-
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                    colors = CardDefaults.cardColors(
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(heroBgStart, heroBgEnd)
-                                )
-                            )
                             .padding(24.dp)
                     ) {
                         Column {
@@ -232,7 +226,7 @@ fun HomeScreen(
                     StatCard(
                         value = "${summary?.streakDays ?: 1}d",
                         label = "Streak",
-                        valueColor = com.example.ui.theme.SuccessGreen,
+                        valueColor = androidx.compose.material3.MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
@@ -334,7 +328,8 @@ fun StatCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        color = SurfaceContainer
+        color = SurfaceContainer,
+        border = BorderStroke(1.dp, ExpressiveCardBorder)
     ) {
         Column(
             modifier = Modifier.padding(vertical = 16.dp, horizontal = 12.dp),
@@ -375,7 +370,8 @@ fun AppUsageCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        color = SurfaceContainer
+        color = SurfaceContainer,
+        border = BorderStroke(1.dp, ExpressiveCardBorder)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)

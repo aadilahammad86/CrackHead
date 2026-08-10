@@ -4,6 +4,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 
 // Energetic Vibrant Palette Base Raw Colors
 val NeonPurple = Color(0xFF8A00FF)
@@ -31,17 +40,29 @@ val DarkCanvas: Color
 val SurfaceContainer: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surface
+    get() = MaterialTheme.colorScheme.surfaceContainer
 
 val SurfaceContainerHigh: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surfaceVariant
+    get() = MaterialTheme.colorScheme.surfaceContainerHigh
 
 val SurfaceContainerHighest: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surfaceVariant
+    get() = MaterialTheme.colorScheme.surfaceContainerHighest
+
+val ExpressiveCardBorder: Color
+    @Composable
+    @ReadOnlyComposable
+    get() {
+        val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        return if (isDark) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.60f)
+        }
+    }
 
 val AccentViolet: Color
     @Composable
@@ -133,6 +154,44 @@ fun getAppInitials(appName: String): String {
         }
         else -> "AP"
     }
+}
+
+@Composable
+fun ExpressiveBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val bg = MaterialTheme.colorScheme.background
+    val isDark = bg.luminance() < 0.5f
+    
+    val primaryAlpha = if (isDark) 0.08f else 0.05f
+    val tertiaryAlpha = if (isDark) 0.05f else 0.03f
+
+    val primaryTint = MaterialTheme.colorScheme.primary.copy(alpha = primaryAlpha)
+    val tertiaryTint = MaterialTheme.colorScheme.tertiary.copy(alpha = tertiaryAlpha)
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(bg)
+            .drawBehind {
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(primaryTint, Color.Transparent),
+                        center = Offset(size.width * 0.85f, size.height * 0.12f),
+                        radius = size.width * 0.90f
+                    )
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(tertiaryTint, Color.Transparent),
+                        center = Offset(size.width * 0.15f, size.height * 0.88f),
+                        radius = size.width * 0.80f
+                    )
+                )
+            },
+        content = content
+    )
 }
 
 

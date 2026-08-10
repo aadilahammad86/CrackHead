@@ -63,6 +63,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedRuleApps = _selectedRuleApps.asStateFlow()
 
     init {
+        if (_themeMode.value == ThemeMode.SYSTEM && _colorSchemeSource.value != ColorSchemeSource.DYNAMIC) {
+            setColorSchemeSource(ColorSchemeSource.DYNAMIC)
+        }
         viewModelScope.launch {
             repository.initializeDefaultDataIfEmpty(getApplication())
             startMonitoringService()
@@ -79,7 +82,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setThemeMode(mode: ThemeMode, isSystemDark: Boolean = true) {
         themePreferences.themeMode = mode
         _themeMode.value = mode
-        if (mode == ThemeMode.SYSTEM && _colorSchemeSource.value == ColorSchemeSource.STATIC) {
+        if (mode == ThemeMode.SYSTEM) {
             setColorSchemeSource(ColorSchemeSource.DYNAMIC, isSystemDark)
         }
     }
