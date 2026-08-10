@@ -50,18 +50,25 @@ class CrackheadMonitoringService : Service() {
     }
 
     private val notifiedGraceApps = mutableMapOf<String, Int>()
+    private val foregroundStartTimes = mutableMapOf<String, Long>()
 
     private var lastLoopWasBlocked = false
 
     private fun startMonitoringLoop() {
         serviceScope.launch {
             repository.initializeDefaultDataIfEmpty(this@CrackheadMonitoringService)
+            var loopCount = 0L
             while (isActive) {
-                repository.syncMonitoredAppsWithRules()
-                repository.syncRealUsageStats(this@CrackheadMonitoringService)
+                // Periodically sync rules and system usage stats every 30 seconds (30 loops)
+                if (loopCount % 30L == 0L) {
+                    repository.syncMonitoredAppsWithRules()
+                    repository.syncRealUsageStats(this@CrackheadMonitoringService)
+                }
+                loopCount++
+
                 val hasBlocked = checkAndUpdateAppLimits()
                 lastLoopWasBlocked = hasBlocked
-                delay(if (hasBlocked) 1000L else 3000L)
+                delay(1000L) // Poll every 1 second for instant, smooth enforcement
             }
         }
     }
@@ -99,26 +106,37 @@ class CrackheadMonitoringService : Service() {
 
         var blockedCount = 0
         var activeCooldownText = ""
-        val timeStep = if (lastLoopWasBlocked) 1L else 3L
+        val now = System.currentTimeMillis()
 
         for (app in monitoredApps) {
             val isForeground = (foregroundPkg == app.packageName)
 
-            // Update session seconds based on foreground status
+            // Update session seconds based on exact real-time clock timestamp
             var currentApp = app
             if (isForeground) {
-                val updatedSession = app.currentSessionSeconds + timeStep
-                val updatedDaily = app.dailyUsageSeconds + timeStep
+                val startTime = foregroundStartTimes.getOrPut(app.packageName) {
+                    now - (app.currentSessionSeconds * 1000L)
+                }
+                val elapsedSec = maxOf(0L, (now - startTime) / 1000L)
+                val addedSec = maxOf(0L, elapsedSec - app.currentSessionSeconds)
+                val updatedSession = elapsedSec
+                val updatedDaily = app.dailyUsageSeconds + addedSec
+
                 repository.appDao.updateSessionUsage(app.packageName, updatedSession)
-                repository.appDao.updateDailyUsage(app.packageName, updatedDaily, System.currentTimeMillis())
+                if (addedSec > 0) {
+                    repository.appDao.updateDailyUsage(app.packageName, updatedDaily, now)
+                }
                 currentApp = app.copy(
                     currentSessionSeconds = updatedSession,
                     dailyUsageSeconds = updatedDaily
                 )
-            } else if (app.currentSessionSeconds > 0) {
-                repository.appDao.updateSessionUsage(app.packageName, 0)
-                currentApp = app.copy(currentSessionSeconds = 0)
-                notifiedGraceApps.remove("${app.packageName}_session_1m")
+            } else {
+                if (foregroundStartTimes.containsKey(app.packageName) || app.currentSessionSeconds > 0) {
+                    foregroundStartTimes.remove(app.packageName)
+                    repository.appDao.updateSessionUsage(app.packageName, 0)
+                    currentApp = app.copy(currentSessionSeconds = 0)
+                    notifiedGraceApps.remove("${app.packageName}_session_1m")
+                }
             }
 
             // Check if cooldown expired
@@ -168,21 +186,25 @@ class CrackheadMonitoringService : Service() {
             // ONLY trigger if the monitored app is actively in foreground (isForeground == true)
             // and nearing its final 1 minute (remaining seconds in 1..60)
             if (rule.graceWarningEnabled && isForeground) {
-                val dailyRemainingSec = dailyLimitSec - app.dailyUsageSeconds
-                if (dailyRemainingSec in 1..60) {
-                    val key = "${app.packageName}_daily_1m"
-                    if (notifiedGraceApps[key] != 1) {
-                        notifiedGraceApps[key] = 1
-                        sendGraceNotification(app.packageName, app.appName, 1)
+                if (rule.dailyLimitMinutes > 1) {
+                    val dailyRemainingSec = dailyLimitSec - app.dailyUsageSeconds
+                    if (dailyRemainingSec in 1..60) {
+                        val key = "${app.packageName}_daily_1m"
+                        if (notifiedGraceApps[key] != 1) {
+                            notifiedGraceApps[key] = 1
+                            sendGraceNotification(app.packageName, app.appName, 1)
+                        }
                     }
                 }
 
-                val sessionRemainingSec = sessionLimitSec - app.currentSessionSeconds
-                if (sessionRemainingSec in 1..60) {
-                    val key = "${app.packageName}_session_1m"
-                    if (notifiedGraceApps[key] != 1) {
-                        notifiedGraceApps[key] = 1
-                        sendGraceNotification(app.packageName, app.appName, 1)
+                if (rule.sessionLimitMinutes > 1) {
+                    val sessionRemainingSec = sessionLimitSec - app.currentSessionSeconds
+                    if (sessionRemainingSec in 1..60) {
+                        val key = "${app.packageName}_session_1m"
+                        if (notifiedGraceApps[key] != 1) {
+                            notifiedGraceApps[key] = 1
+                            sendGraceNotification(app.packageName, app.appName, 1)
+                        }
                     }
                 }
             }

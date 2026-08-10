@@ -173,7 +173,16 @@ class CrackheadRepository(context: Context) {
                     app
                 }
             }
-            appDao.insertOrUpdateApps(updatedApps)
+            for (app in updatedApps) {
+                val freshApp = appDao.getAppByPackage(app.packageName)
+                if (freshApp != null) {
+                    val mergedApp = freshApp.copy(
+                        baselineUsageSeconds = app.baselineUsageSeconds,
+                        dailyUsageSeconds = maxOf(freshApp.dailyUsageSeconds, app.dailyUsageSeconds)
+                    )
+                    appDao.insertOrUpdateApp(mergedApp)
+                }
+            }
 
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val summary = summaryDao.getSummarySync(todayStr) ?: DailySummary(todayStr)
@@ -217,8 +226,17 @@ class CrackheadRepository(context: Context) {
                 }
             }
 
-            if (updatedList.isNotEmpty()) {
-                appDao.insertOrUpdateApps(updatedList)
+            for (updatedApp in updatedList) {
+                val freshApp = appDao.getAppByPackage(updatedApp.packageName)
+                if (freshApp != null) {
+                    val mergedApp = freshApp.copy(
+                        isMonitored = updatedApp.isMonitored,
+                        dailyLimitMinutes = updatedApp.dailyLimitMinutes,
+                        sessionLimitMinutes = updatedApp.sessionLimitMinutes,
+                        cooldownDurationMinutes = updatedApp.cooldownDurationMinutes
+                    )
+                    appDao.insertOrUpdateApp(mergedApp)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
