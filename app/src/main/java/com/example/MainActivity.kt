@@ -91,6 +91,7 @@ import com.example.util.PermissionUtils
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private val requestedTab = kotlinx.coroutines.flow.MutableStateFlow<String?>("home")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -103,6 +104,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val initialTab = intent.getStringExtra("OPEN_TAB") ?: "home"
+        requestedTab.value = initialTab
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
@@ -114,10 +116,17 @@ class MainActivity : ComponentActivity() {
             ) {
                 CrackheadMainApp(
                     viewModel = viewModel,
-                    initialTab = initialTab
+                    requestedTabFlow = requestedTab
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val tab = intent.getStringExtra("OPEN_TAB") ?: "home"
+        requestedTab.value = tab
     }
 }
 
@@ -125,7 +134,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CrackheadMainApp(
     viewModel: MainViewModel,
-    initialTab: String
+    requestedTabFlow: kotlinx.coroutines.flow.StateFlow<String?>
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -170,8 +179,16 @@ fun CrackheadMainApp(
         return
     }
 
-    var currentScreen by remember { mutableStateOf(if (initialTab == "insights") "insights" else "home") }
+    val requestedTabState by requestedTabFlow.collectAsState()
+
+    var currentScreen by remember { mutableStateOf(requestedTabState ?: "home") }
     var previousScreen by remember { mutableStateOf("home") }
+
+    androidx.compose.runtime.LaunchedEffect(requestedTabState) {
+        requestedTabState?.let { tab ->
+            currentScreen = tab
+        }
+    }
     var selectedAppForSheet by remember { mutableStateOf<MonitoredApp?>(null) }
     var editingRule by remember { mutableStateOf<UsageRule?>(null) }
 

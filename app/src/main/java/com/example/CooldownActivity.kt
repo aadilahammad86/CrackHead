@@ -74,7 +74,7 @@ class CooldownActivity : ComponentActivity() {
                     onViewStats = {
                         val intent = Intent(this, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            putExtra("OPEN_TAB", "insights")
+                            putExtra("OPEN_TAB", "home")
                         }
                         startActivity(intent)
                         finish()
