@@ -6,7 +6,8 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published]
+    types: [published, created, edited]
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -89,16 +90,28 @@ jobs:
           name: Crackhead-APKs
           path: outputs/*
 
-      - name: Upload APK to GitHub Release
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            outputs/Crackhead-Universal-Release.apk
-            outputs/Crackhead-Universal-Debug.apk
-          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
+      - name: Attach APKs to GitHub Release
+        run: |
+          TARGET_TAG="${{ github.event.release.tag_name }}"
+          
+          if [ -z "$TARGET_TAG" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TARGET_TAG="${{ github.ref_name }}"
+          fi
+
+          if [ -z "$TARGET_TAG" ]; then
+            TARGET_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null || true)
+          fi
+
+          if [ -n "$TARGET_TAG" ]; then
+            echo "Uploading APKs to release tag: $TARGET_TAG"
+            gh release upload "$TARGET_TAG" outputs/*.apk --clobber
+          else
+            echo "No existing release found. Creating release v1.0.0 with APKs..."
+            gh release create "v1.0.0" outputs/*.apk --title "CrackHead v1.0.0" --notes "Automated release build"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
