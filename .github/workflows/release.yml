@@ -1,8 +1,12 @@
 name: Build and Attach Release APK
 
 on:
+  push:
+    tags:
+      - '*'
   release:
-    types: [published]
+    types: [published, created, edited]
+  workflow_dispatch:
 
 jobs:
   build-and-release:
