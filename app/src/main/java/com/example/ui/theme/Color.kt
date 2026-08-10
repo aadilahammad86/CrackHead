@@ -30,27 +30,26 @@ val SuccessGreen = VividLime
 val CardGlowPrimaryStart = Color(0xFF533198)
 val CardGlowPrimaryEnd = Color(0xFF2D1A54)
 
-// Dynamic Color Scheme Bridges
-// Reading these inside @Composable functions will automatically return the active theme's colors!
+// Dynamic Color Scheme Bridges (Delegating to ThemeTokens)
 val DarkCanvas: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.background
+    get() = ThemeTokens.AppBackground
 
 val SurfaceContainer: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surfaceContainer
+    get() = ThemeTokens.Container
 
 val SurfaceContainerHigh: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surfaceContainerHigh
+    get() = ThemeTokens.ContainerHigh
 
 val SurfaceContainerHighest: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.surfaceContainerHighest
+    get() = ThemeTokens.ContainerHighest
 
 val ExpressiveCardBorder: Color
     @Composable
@@ -67,73 +66,73 @@ val ExpressiveCardBorder: Color
 val AccentViolet: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.primary
+    get() = ThemeTokens.Primary
 
 val AccentVioletVariant: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.primaryContainer
+    get() = ThemeTokens.PrimaryContainer
 
 val AccentLavender: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.primaryContainer
+    get() = ThemeTokens.PrimaryContainer
 
 val AccentPill: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.secondaryContainer
+    get() = ThemeTokens.SecondaryContainer
 
 val FabPurple: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.primary
+    get() = ThemeTokens.Primary
 
 val TextPrimary: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.onBackground
+    get() = ThemeTokens.TextPrimary
 
 val TextSecondary: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.onSurfaceVariant
+    get() = ThemeTokens.TextSecondary
 
 val TextMuted: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.outline
+    get() = ThemeTokens.TextMuted
 
 val OnPrimaryContainer: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.onPrimaryContainer
+    get() = ThemeTokens.OnPrimaryContainer
 
 val CardBorderColor: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.outlineVariant
+    get() = ThemeTokens.CardBorder
 
-// Centralized Semantic State Tokens
+// Centralized Semantic State Tokens (Delegated to ThemeTokens)
 val StatusGreen: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiary
+    get() = ThemeTokens.Success
 
 val StatusGreenBg: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiaryContainer
+    get() = ThemeTokens.SuccessContainer
 
 val StatusGreenBorder: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+    get() = ThemeTokens.SuccessBorder
 
 val StatusGreenContent: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.onTertiaryContainer
+    get() = ThemeTokens.OnSuccessContainer
 
 val AppIconColors = listOf(
     Color(0xFFE53935), // Red
