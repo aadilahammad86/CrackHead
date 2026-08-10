@@ -39,6 +39,8 @@ data class UsageRule(
     val appPackages: List<String>,
     val limitType: String, // "DAILY_TOTAL" or "SINGLE_SESSION"
     val limitMinutes: Int, // e.g. 60
+    val dailyLimitMinutes: Int = 60,
+    val sessionLimitMinutes: Int = 15,
     val combineMode: String = "OR", // "OR" (either app) or "AND" (both apps)
     val graceWarningEnabled: Boolean = true,
     val cooldownMinutes: Int = 60,

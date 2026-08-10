@@ -67,26 +67,33 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
+import com.example.ui.dialogs.AppRuleConflict
+import com.example.ui.dialogs.RuleConflictDialog
+
 @Composable
 fun NewRuleScreen(
     allApps: List<MonitoredApp>,
     selectedPackages: List<String>,
+    existingRules: List<UsageRule> = emptyList(),
     editingRule: UsageRule? = null,
     onOpenAppPicker: () -> Unit,
     onBack: () -> Unit,
     onSaveRule: (UsageRule) -> Unit
 ) {
     var limitType by remember(editingRule) { mutableStateOf(editingRule?.limitType ?: "DAILY_TOTAL") } // "DAILY_TOTAL" or "SINGLE_SESSION"
-    var limitMinutes by remember(editingRule) { mutableIntStateOf(editingRule?.limitMinutes ?: 60) } // 60 mins (1h 00m)
+    var dailyLimitMinutes by remember(editingRule) { mutableIntStateOf(editingRule?.dailyLimitMinutes ?: (if (editingRule?.limitType == "DAILY_TOTAL") editingRule.limitMinutes else 60)) }
+    var sessionLimitMinutes by remember(editingRule) { mutableIntStateOf(editingRule?.sessionLimitMinutes ?: (if (editingRule?.limitType == "SINGLE_SESSION") editingRule.limitMinutes else 15)) }
     var combineMode by remember(editingRule) { mutableStateOf(editingRule?.combineMode ?: "OR") } // "OR" or "AND"
     var graceWarningEnabled by remember(editingRule) { mutableStateOf(editingRule?.graceWarningEnabled ?: true) }
     var cooldownMinutes by remember(editingRule) { mutableIntStateOf(editingRule?.cooldownMinutes ?: 60) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var conflictDialogState by remember { mutableStateOf<List<AppRuleConflict>?>(null) }
 
     val selectedApps = allApps.filter { selectedPackages.contains(it.packageName) }
 
-    val hoursPart = limitMinutes / 60
-    val minsPart = limitMinutes % 60
+    val currentLimitMinutes = if (limitType == "DAILY_TOTAL") dailyLimitMinutes else sessionLimitMinutes
+    val hoursPart = currentLimitMinutes / 60
+    val minsPart = currentLimitMinutes % 60
     val timeFormatted = if (hoursPart > 0) "${hoursPart}h ${String.format("%02dm", minsPart)}" else "${minsPart}m"
 
     Box(
@@ -278,7 +285,7 @@ fun NewRuleScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "ALLOW UP TO",
+                        text = if (limitType == "DAILY_TOTAL") "ALLOW UP TO (DAILY TOTAL)" else "ALLOW UP TO (SINGLE SESSION)",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp,
@@ -289,7 +296,11 @@ fun NewRuleScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Time Template Chips
-                    val presetTemplates = listOf(1, 2, 5, 10, 15, 30, 60, 120)
+                    val presetTemplates = if (limitType == "DAILY_TOTAL") {
+                        listOf(1, 2, 5, 10, 15, 30, 60, 120)
+                    } else {
+                        listOf(1, 2, 5, 10, 15, 20, 30, 45)
+                    }
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -300,9 +311,11 @@ fun NewRuleScreen(
                                 mins % 60 == 0 -> "${mins / 60}h"
                                 else -> "${mins / 60}h ${mins % 60}m"
                             }
-                            val isSelected = limitMinutes == mins
+                            val isSelected = currentLimitMinutes == mins
                             Surface(
-                                onClick = { limitMinutes = mins },
+                                onClick = {
+                                    if (limitType == "DAILY_TOTAL") dailyLimitMinutes = mins else sessionLimitMinutes = mins
+                                },
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else SurfaceContainerHigh
                             ) {
@@ -325,7 +338,13 @@ fun NewRuleScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         IconButton(
-                            onClick = { if (limitMinutes > 1) limitMinutes -= 1 },
+                            onClick = {
+                                if (limitType == "DAILY_TOTAL") {
+                                    if (dailyLimitMinutes > 1) dailyLimitMinutes -= 1
+                                } else {
+                                    if (sessionLimitMinutes > 1) sessionLimitMinutes -= 1
+                                }
+                            },
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
@@ -371,7 +390,13 @@ fun NewRuleScreen(
                         Spacer(modifier = Modifier.width(16.dp))
 
                         IconButton(
-                            onClick = { if (limitMinutes < 1440) limitMinutes += 1 },
+                            onClick = {
+                                if (limitType == "DAILY_TOTAL") {
+                                    if (dailyLimitMinutes < 1440) dailyLimitMinutes += 1
+                                } else {
+                                    if (sessionLimitMinutes < 1440) sessionLimitMinutes += 1
+                                }
+                            },
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
@@ -466,7 +491,7 @@ fun NewRuleScreen(
             // Grace Warning Card
             val context = LocalContext.current
             val defaultGrace = remember(context) { com.example.data.ThemePreferences(context).defaultGraceMinutes }
-            val effectiveGrace = if (limitMinutes <= defaultGrace) 1 else defaultGrace
+            val effectiveGrace = if (currentLimitMinutes <= defaultGrace) 1 else defaultGrace
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -573,20 +598,34 @@ fun NewRuleScreen(
             // Save Rule Button
             Button(
                 onClick = {
-                    val updatedRule = UsageRule(
-                        id = editingRule?.id ?: 0L,
-                        name = if (selectedApps.isNotEmpty()) {
-                            selectedApps.joinToString(" + ") { it.appName } + " Rule"
-                        } else (editingRule?.name ?: "Custom Rule"),
-                        appPackages = selectedPackages,
-                        limitType = limitType,
-                        limitMinutes = limitMinutes,
-                        combineMode = combineMode,
-                        graceWarningEnabled = graceWarningEnabled,
-                        cooldownMinutes = cooldownMinutes,
-                        isEnabled = editingRule?.isEnabled ?: true
-                    )
-                    onSaveRule(updatedRule)
+                    val activeConflicts = selectedPackages.mapNotNull { pkg ->
+                        val rule = existingRules.find { r -> r.id != editingRule?.id && r.appPackages.contains(pkg) }
+                        val app = allApps.find { a -> a.packageName == pkg }
+                        if (rule != null && app != null) {
+                            AppRuleConflict(appName = app.appName, existingRuleName = rule.name, packageName = pkg)
+                        } else null
+                    }
+
+                    if (activeConflicts.isNotEmpty()) {
+                        conflictDialogState = activeConflicts
+                    } else {
+                        val updatedRule = UsageRule(
+                            id = editingRule?.id ?: 0L,
+                            name = if (selectedApps.isNotEmpty()) {
+                                selectedApps.joinToString(" + ") { it.appName } + " Rule"
+                            } else (editingRule?.name ?: "Custom Rule"),
+                            appPackages = selectedPackages,
+                            limitType = limitType,
+                            limitMinutes = currentLimitMinutes,
+                            dailyLimitMinutes = dailyLimitMinutes,
+                            sessionLimitMinutes = sessionLimitMinutes,
+                            combineMode = combineMode,
+                            graceWarningEnabled = graceWarningEnabled,
+                            cooldownMinutes = cooldownMinutes,
+                            isEnabled = editingRule?.isEnabled ?: true
+                        )
+                        onSaveRule(updatedRule)
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -609,11 +648,22 @@ fun NewRuleScreen(
 
         if (showTimePicker) {
             ExpressiveWheelTimePickerDialog(
-                initialMinutes = limitMinutes,
+                initialMinutes = currentLimitMinutes,
                 onDismiss = { showTimePicker = false },
                 onTimeSelected = { selectedMinutes ->
-                    limitMinutes = selectedMinutes
+                    if (limitType == "DAILY_TOTAL") {
+                        dailyLimitMinutes = selectedMinutes
+                    } else {
+                        sessionLimitMinutes = selectedMinutes
+                    }
                 }
+            )
+        }
+
+        conflictDialogState?.let { conflicts ->
+            RuleConflictDialog(
+                conflicts = conflicts,
+                onDismiss = { conflictDialogState = null }
             )
         }
     }

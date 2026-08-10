@@ -54,16 +54,23 @@ import com.example.ui.theme.TextSecondary
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.LaunchedEffect
 
+import com.example.data.UsageRule
+import com.example.ui.dialogs.AppRuleConflict
+import com.example.ui.dialogs.RuleConflictDialog
+
 @Composable
 fun SelectAppsScreen(
     allApps: List<MonitoredApp>,
     selectedPackages: List<String>,
+    existingRules: List<UsageRule> = emptyList(),
+    editingRuleId: Long? = null,
     onTogglePackage: (String) -> Unit,
     onRefreshApps: (() -> Unit)? = null,
     onBack: () -> Unit,
     onContinue: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var conflictDialogState by remember { mutableStateOf<List<AppRuleConflict>?>(null) }
 
     LaunchedEffect(Unit) {
         onRefreshApps?.invoke()
@@ -171,6 +178,9 @@ fun SelectAppsScreen(
             ) {
                 items(filteredApps, key = { it.packageName }) { app ->
                     val isSelected = selectedPackages.contains(app.packageName)
+                    val existingRuleForApp = existingRules.find { rule ->
+                        rule.id != editingRuleId && rule.appPackages.contains(app.packageName)
+                    }
 
                     val initialsBg = com.example.ui.theme.getAppColor(app.packageName, app.appName)
                     val displayInitials = com.example.ui.theme.getAppInitials(app.appName)
@@ -178,7 +188,19 @@ fun SelectAppsScreen(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onTogglePackage(app.packageName) },
+                            .clickable {
+                                if (existingRuleForApp != null && !isSelected) {
+                                    conflictDialogState = listOf(
+                                        AppRuleConflict(
+                                            appName = app.appName,
+                                            existingRuleName = existingRuleForApp.name,
+                                            packageName = app.packageName
+                                        )
+                                    )
+                                } else {
+                                    onTogglePackage(app.packageName)
+                                }
+                            },
                         shape = RoundedCornerShape(18.dp),
                         color = SurfaceContainer
                     ) {
@@ -213,16 +235,37 @@ fun SelectAppsScreen(
                                     color = TextPrimary
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = app.category,
-                                    fontSize = 13.sp,
-                                    color = TextSecondary
-                                )
+                                if (existingRuleForApp != null) {
+                                    Text(
+                                        text = "In rule: ${existingRuleForApp.name}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = com.example.ui.theme.WarningAmber
+                                    )
+                                } else {
+                                    Text(
+                                        text = app.category,
+                                        fontSize = 13.sp,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
 
                             Switch(
                                 checked = isSelected,
-                                onCheckedChange = { onTogglePackage(app.packageName) },
+                                onCheckedChange = {
+                                    if (existingRuleForApp != null && !isSelected) {
+                                        conflictDialogState = listOf(
+                                            AppRuleConflict(
+                                                appName = app.appName,
+                                                existingRuleName = existingRuleForApp.name,
+                                                packageName = app.packageName
+                                            )
+                                        )
+                                    } else {
+                                        onTogglePackage(app.packageName)
+                                    }
+                                },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
                                     checkedTrackColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
@@ -249,7 +292,21 @@ fun SelectAppsScreen(
                 )
 
                 Button(
-                    onClick = onContinue,
+                    onClick = {
+                        val activeConflicts = selectedPackages.mapNotNull { pkg ->
+                            val rule = existingRules.find { r -> r.id != editingRuleId && r.appPackages.contains(pkg) }
+                            val app = allApps.find { a -> a.packageName == pkg }
+                            if (rule != null && app != null) {
+                                AppRuleConflict(appName = app.appName, existingRuleName = rule.name, packageName = pkg)
+                            } else null
+                        }
+
+                        if (activeConflicts.isNotEmpty()) {
+                            conflictDialogState = activeConflicts
+                        } else {
+                            onContinue()
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
@@ -266,6 +323,13 @@ fun SelectAppsScreen(
                     )
                 }
             }
+        }
+
+        conflictDialogState?.let { conflicts ->
+            RuleConflictDialog(
+                conflicts = conflicts,
+                onDismiss = { conflictDialogState = null }
+            )
         }
     }
 }

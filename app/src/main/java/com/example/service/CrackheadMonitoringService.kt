@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -47,36 +49,101 @@ class CrackheadMonitoringService : Service() {
         super.onDestroy()
     }
 
+    private val notifiedGraceApps = mutableMapOf<String, Int>()
+
+    private var lastLoopWasBlocked = false
+
     private fun startMonitoringLoop() {
         serviceScope.launch {
             repository.initializeDefaultDataIfEmpty(this@CrackheadMonitoringService)
             while (isActive) {
-                checkAndUpdateAppLimits()
-                delay(3000) // Check every 3 seconds
+                repository.syncMonitoredAppsWithRules()
+                repository.syncRealUsageStats(this@CrackheadMonitoringService)
+                val hasBlocked = checkAndUpdateAppLimits()
+                lastLoopWasBlocked = hasBlocked
+                delay(if (hasBlocked) 1000L else 3000L)
             }
         }
     }
 
-    private suspend fun checkAndUpdateAppLimits() {
+    private var lastKnownForegroundPackage: String? = null
+
+    private fun getForegroundAppPackage(): String? {
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return lastKnownForegroundPackage
+        val time = System.currentTimeMillis()
+        val events = usm.queryEvents(time - 60000, time)
+        val event = UsageEvents.Event()
+        var latestPkg: String? = null
+        var maxTime = 0L
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
+                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                if (event.timeStamp > maxTime) {
+                    maxTime = event.timeStamp
+                    latestPkg = event.packageName
+                }
+            }
+        }
+        if (latestPkg != null) {
+            lastKnownForegroundPackage = latestPkg
+        }
+        return lastKnownForegroundPackage
+    }
+
+    private suspend fun checkAndUpdateAppLimits(): Boolean {
         val monitoredApps = repository.monitoredApps.first()
         val rules = repository.ruleDao.getActiveRules()
+        val fgFromAccessibility = CrackheadAccessibilityService.currentForegroundPackage
+        val foregroundPkg = fgFromAccessibility ?: getForegroundAppPackage()
 
         var blockedCount = 0
         var activeCooldownText = ""
+        val timeStep = if (lastLoopWasBlocked) 1L else 3L
 
         for (app in monitoredApps) {
+            val isForeground = (foregroundPkg == app.packageName)
+
+            // Update session seconds based on foreground status
+            var currentApp = app
+            if (isForeground) {
+                val updatedSession = app.currentSessionSeconds + timeStep
+                val updatedDaily = app.dailyUsageSeconds + timeStep
+                repository.appDao.updateSessionUsage(app.packageName, updatedSession)
+                repository.appDao.updateDailyUsage(app.packageName, updatedDaily, System.currentTimeMillis())
+                currentApp = app.copy(
+                    currentSessionSeconds = updatedSession,
+                    dailyUsageSeconds = updatedDaily
+                )
+            } else if (app.currentSessionSeconds > 0) {
+                repository.appDao.updateSessionUsage(app.packageName, 0)
+                currentApp = app.copy(currentSessionSeconds = 0)
+                notifiedGraceApps.remove("${app.packageName}_session_1m")
+            }
+
             // Check if cooldown expired
-            if (app.isBlocked) {
-                if (app.isCooldownExpired) {
-                    repository.unblockApp(app.packageName)
+            if (currentApp.isBlocked) {
+                if (currentApp.isCooldownExpired) {
+                    repository.unblockApp(currentApp.packageName)
+                    notifiedGraceApps.remove(currentApp.packageName)
+                    notifiedGraceApps.remove("${currentApp.packageName}_daily_1m")
+                    notifiedGraceApps.remove("${currentApp.packageName}_session_1m")
                 } else {
                     blockedCount++
-                    val remainingMins = (app.remainingCooldownSeconds / 60) + 1
-                    activeCooldownText = "${app.appName} on cooldown (${remainingMins}m remaining)"
+                    val remSec = currentApp.remainingCooldownSeconds
+                    val mins = remSec / 60
+                    val secs = remSec % 60
+                    val timeFormatted = if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
+                    activeCooldownText = "🔒 ${currentApp.appName} on cooldown ($timeFormatted remaining)"
+
+                    // ENFORCEMENT: If user is in or opening blocked app, kick them out to Home Screen & launch Cooldown activity!
+                    if (isForeground) {
+                        launchCooldownScreen(currentApp.packageName, currentApp.appName, currentApp.cooldownDurationMinutes)
+                    }
                 }
             } else {
                 // Evaluate rules for this app
-                evaluateRulesForApp(app, rules)
+                evaluateRulesForApp(currentApp, rules, isForeground)
             }
         }
 
@@ -87,56 +154,113 @@ class CrackheadMonitoringService : Service() {
             "Watching ${monitoredApps.size} apps • Self-control active"
         }
         updateForegroundNotification(notificationText)
+        return blockedCount > 0
     }
 
-    private suspend fun evaluateRulesForApp(app: MonitoredApp, rules: List<UsageRule>) {
+    private suspend fun evaluateRulesForApp(app: MonitoredApp, rules: List<UsageRule>, isForeground: Boolean) {
         val appRules = rules.filter { it.appPackages.contains(app.packageName) }
-        val defaultGrace = com.example.data.ThemePreferences(this).defaultGraceMinutes
+
         for (rule in appRules) {
-            val limitSec = rule.limitMinutes * 60L
-            val warningMins = if (rule.limitMinutes <= defaultGrace) 1 else defaultGrace
-            val graceSec = (rule.limitMinutes - warningMins).coerceAtLeast(0) * 60L
+            val dailyLimitSec = rule.dailyLimitMinutes * 60L
+            val sessionLimitSec = rule.sessionLimitMinutes * 60L
 
-            if (rule.limitType == "DAILY_TOTAL") {
-                // Check grace warning
-                if (rule.graceWarningEnabled && app.dailyUsageSeconds in graceSec until limitSec) {
-                    val remMins = ((limitSec - app.dailyUsageSeconds) / 60L).toInt().coerceAtLeast(1)
-                    sendGraceNotification(app.appName, remMins)
+            // Grace warning check:
+            // ONLY trigger if the monitored app is actively in foreground (isForeground == true)
+            // and nearing its final 1 minute (remaining seconds in 1..60)
+            if (rule.graceWarningEnabled && isForeground) {
+                val dailyRemainingSec = dailyLimitSec - app.dailyUsageSeconds
+                if (dailyRemainingSec in 1..60) {
+                    val key = "${app.packageName}_daily_1m"
+                    if (notifiedGraceApps[key] != 1) {
+                        notifiedGraceApps[key] = 1
+                        sendGraceNotification(app.packageName, app.appName, 1)
+                    }
                 }
 
-                // Check limit exceeded
-                if (app.dailyUsageSeconds >= limitSec) {
-                    repository.triggerBlock(
-                        packageName = app.packageName,
-                        appName = app.appName,
-                        reason = "Daily limit reached (${rule.limitMinutes}m)",
-                        cooldownMinutes = rule.cooldownMinutes
-                    )
+                val sessionRemainingSec = sessionLimitSec - app.currentSessionSeconds
+                if (sessionRemainingSec in 1..60) {
+                    val key = "${app.packageName}_session_1m"
+                    if (notifiedGraceApps[key] != 1) {
+                        notifiedGraceApps[key] = 1
+                        sendGraceNotification(app.packageName, app.appName, 1)
+                    }
+                }
+            }
+
+            // Check if daily total limit exceeded
+            if (app.dailyUsageSeconds >= dailyLimitSec) {
+                val reason = "Daily limit reached (${rule.dailyLimitMinutes}m)"
+                repository.triggerBlock(
+                    packageName = app.packageName,
+                    appName = app.appName,
+                    reason = reason,
+                    cooldownMinutes = rule.cooldownMinutes
+                )
+                sendCooldownTriggerNotification(app.packageName, app.appName, rule.cooldownMinutes, reason)
+                if (isForeground) {
                     launchCooldownScreen(app.packageName, app.appName, rule.cooldownMinutes)
-                    break
                 }
-            } else if (rule.limitType == "SINGLE_SESSION") {
-                // Check grace warning for session
-                if (rule.graceWarningEnabled && app.currentSessionSeconds in graceSec until limitSec) {
-                    val remMins = ((limitSec - app.currentSessionSeconds) / 60L).toInt().coerceAtLeast(1)
-                    sendGraceNotification(app.appName, remMins)
-                }
+                break
+            }
 
-                if (app.currentSessionSeconds >= limitSec) {
-                    repository.triggerBlock(
-                        packageName = app.packageName,
-                        appName = app.appName,
-                        reason = "Session limit exceeded (${rule.limitMinutes}m sitting)",
-                        cooldownMinutes = rule.cooldownMinutes
-                    )
+            // Check if single session limit exceeded
+            if (app.currentSessionSeconds >= sessionLimitSec) {
+                val reason = "Session limit exceeded (${rule.sessionLimitMinutes}m sitting)"
+                repository.triggerBlock(
+                    packageName = app.packageName,
+                    appName = app.appName,
+                    reason = reason,
+                    cooldownMinutes = rule.cooldownMinutes
+                )
+                sendCooldownTriggerNotification(app.packageName, app.appName, rule.cooldownMinutes, reason)
+                if (isForeground) {
                     launchCooldownScreen(app.packageName, app.appName, rule.cooldownMinutes)
-                    break
                 }
+                break
             }
         }
     }
 
-    private fun sendGraceNotification(appName: String, minutesRemaining: Int) {
+    private fun redirectToHomeScreen() {
+        try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            startActivity(homeIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun launchCooldownScreen(packageName: String, appName: String, cooldownMinutes: Int) {
+        val accessibilityService = CrackheadAccessibilityService.instance
+        if (accessibilityService != null) {
+            accessibilityService.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+        } else {
+            redirectToHomeScreen()
+        }
+        val intent = Intent(this, CooldownActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("PACKAGE_NAME", packageName)
+            putExtra("APP_NAME", appName)
+            putExtra("COOLDOWN_MINUTES", cooldownMinutes)
+            putExtra("REMAINING_SECONDS", cooldownMinutes * 60L)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun sendGraceNotification(packageName: String, appName: String, minutesRemaining: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
+
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -149,21 +273,41 @@ class CrackheadMonitoringService : Service() {
             .setContentTitle("Wrap it up! ⏳")
             .setContentText("You have ~$minutesRemaining min left on $appName before cooldown kicks in.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
 
-        manager.notify(NOTIFICATION_WARNING_ID, notification)
+        val notifId = NOTIFICATION_WARNING_ID + (packageName.hashCode() and 0xFFFF)
+        manager.notify(notifId, notification)
     }
 
-    private fun launchCooldownScreen(packageName: String, appName: String, cooldownMinutes: Int) {
-        val intent = Intent(this, CooldownActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("PACKAGE_NAME", packageName)
-            putExtra("APP_NAME", appName)
-            putExtra("COOLDOWN_MINUTES", cooldownMinutes)
+    private fun sendCooldownTriggerNotification(packageName: String, appName: String, cooldownMinutes: Int, reason: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                return
+            }
         }
-        startActivity(intent)
+
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_WARNINGS)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("🔒 $appName Cooldown Started")
+            .setContentText("$reason. Cooldown duration: $cooldownMinutes min.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        val notifId = NOTIFICATION_WARNING_ID + 1000 + (packageName.hashCode() and 0xFFFF)
+        manager.notify(notifId, notification)
     }
 
     private fun createNotificationChannels() {

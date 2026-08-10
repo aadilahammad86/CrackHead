@@ -26,6 +26,7 @@ class CrackheadRepository(context: Context) {
 
     suspend fun initializeDefaultDataIfEmpty(context: Context) {
         syncInstalledApps(context)
+        syncMonitoredAppsWithRules()
         syncRealUsageStats(context)
 
         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -139,7 +140,7 @@ class CrackheadRepository(context: Context) {
                 if (stat != null && stat.totalTimeInForeground > 0) {
                     val usageSec = stat.totalTimeInForeground / 1000L
                     totalScreenTimeSec += usageSec
-                    app.copy(dailyUsageSeconds = usageSec)
+                    app.copy(dailyUsageSeconds = maxOf(app.dailyUsageSeconds, usageSec))
                 } else {
                     app
                 }
@@ -156,21 +157,76 @@ class CrackheadRepository(context: Context) {
         }
     }
 
+    suspend fun syncMonitoredAppsWithRules() {
+        try {
+            val rules = ruleDao.getAllRulesList()
+            val allAppsList = appDao.getAllAppsList()
+            val updatedList = mutableListOf<MonitoredApp>()
+
+            for (app in allAppsList) {
+                val appRules = rules.filter { it.isEnabled && it.appPackages.contains(app.packageName) }
+                val isNowMonitored = appRules.isNotEmpty()
+
+                if (appRules.isNotEmpty()) {
+                    val dailyRule = appRules.find { it.limitType == "DAILY_TOTAL" }
+                    val sessionRule = appRules.find { it.limitType == "SINGLE_SESSION" }
+
+                    val newDailyLimit = appRules.map { it.dailyLimitMinutes }.minOrNull()
+                        ?: app.dailyLimitMinutes
+
+                    val newSessionLimit = appRules.map { it.sessionLimitMinutes }.minOrNull()
+                        ?: app.sessionLimitMinutes
+
+                    val newCooldown = appRules.maxOfOrNull { it.cooldownMinutes } ?: app.cooldownDurationMinutes
+
+                    val updatedApp = app.copy(
+                        isMonitored = true,
+                        dailyLimitMinutes = newDailyLimit,
+                        sessionLimitMinutes = newSessionLimit,
+                        cooldownDurationMinutes = newCooldown
+                    )
+                    updatedList.add(updatedApp)
+                } else {
+                    if (app.isMonitored) {
+                        updatedList.add(app.copy(isMonitored = false))
+                    }
+                }
+            }
+
+            if (updatedList.isNotEmpty()) {
+                appDao.insertOrUpdateApps(updatedList)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     suspend fun toggleAppMonitored(packageName: String, isMonitored: Boolean) {
         appDao.setMonitored(packageName, isMonitored)
     }
 
     suspend fun saveRule(rule: UsageRule): Long {
-        return if (rule.id == 0L) {
+        val id = if (rule.id == 0L) {
             ruleDao.insertRule(rule)
         } else {
             ruleDao.updateRule(rule)
             rule.id
         }
+        syncMonitoredAppsWithRules()
+
+        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val currentSummary = summaryDao.getSummarySync(todayStr) ?: DailySummary(todayStr)
+        val monitoredCount = appDao.getMonitoredApps().first().size
+        summaryDao.insertOrUpdateSummary(
+            currentSummary.copy(appsLimitedCount = monitoredCount)
+        )
+
+        return id
     }
 
     suspend fun deleteRule(ruleId: Long) {
         ruleDao.deleteRuleById(ruleId)
+        syncMonitoredAppsWithRules()
     }
 
     suspend fun triggerBlock(packageName: String, appName: String, reason: String, cooldownMinutes: Int) {

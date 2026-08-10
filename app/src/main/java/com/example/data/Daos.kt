@@ -19,6 +19,9 @@ interface MonitoredAppDao {
     @Query("SELECT * FROM monitored_apps WHERE packageName = :packageName LIMIT 1")
     suspend fun getAppByPackage(packageName: String): MonitoredApp?
 
+    @Query("SELECT * FROM monitored_apps")
+    suspend fun getAllAppsList(): List<MonitoredApp>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateApps(apps: List<MonitoredApp>)
 
@@ -45,6 +48,9 @@ interface MonitoredAppDao {
 interface UsageRuleDao {
     @Query("SELECT * FROM usage_rules ORDER BY id DESC")
     fun getAllRules(): Flow<List<UsageRule>>
+
+    @Query("SELECT * FROM usage_rules")
+    suspend fun getAllRulesList(): List<UsageRule>
 
     @Query("SELECT * FROM usage_rules WHERE isEnabled = 1")
     suspend fun getActiveRules(): List<UsageRule>

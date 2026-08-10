@@ -15,10 +15,10 @@ class CrackheadAccessibilityService : AccessibilityService() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private lateinit var repository: CrackheadRepository
-    private var currentPackage: String? = null
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         repository = CrackheadRepository(this)
     }
 
@@ -26,12 +26,10 @@ class CrackheadAccessibilityService : AccessibilityService() {
         if (event == null) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkgName = event.packageName?.toString() ?: return
-            if (pkgName == packageName || pkgName == "com.android.systemui") return
+            if (pkgName == "com.android.systemui") return
 
-            if (pkgName != currentPackage) {
-                currentPackage = pkgName
-                checkPackageState(pkgName)
-            }
+            currentForegroundPackage = pkgName
+            checkPackageState(pkgName)
         }
     }
 
@@ -45,7 +43,7 @@ class CrackheadAccessibilityService : AccessibilityService() {
 
                     // Launch Cooldown screen overlay
                     val intent = Intent(this@CrackheadAccessibilityService, CooldownActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         putExtra("PACKAGE_NAME", app.packageName)
                         putExtra("APP_NAME", app.appName)
                         putExtra("COOLDOWN_MINUTES", app.cooldownDurationMinutes)
@@ -64,7 +62,16 @@ class CrackheadAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        if (instance == this) instance = null
         serviceJob.cancel()
         super.onDestroy()
+    }
+
+    companion object {
+        @Volatile
+        var instance: CrackheadAccessibilityService? = null
+
+        @Volatile
+        var currentForegroundPackage: String? = null
     }
 }

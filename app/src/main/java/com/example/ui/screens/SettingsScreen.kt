@@ -65,6 +65,13 @@ import androidx.compose.material.icons.filled.SettingsSuggest
 import com.example.ui.theme.ColorSchemeSource
 import com.example.ui.theme.ThemeMode
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.util.PermissionUtils
+
 @Composable
 fun SettingsScreen(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -78,7 +85,24 @@ fun SettingsScreen(
     onUnblockAll: () -> Unit
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var isAccessibilityGranted by remember { mutableStateOf(PermissionUtils.isAccessibilityServiceEnabled(context)) }
+    var isUsageGranted by remember { mutableStateOf(PermissionUtils.isUsageStatsGranted(context)) }
     var strictModeEnabled by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isAccessibilityGranted = PermissionUtils.isAccessibilityServiceEnabled(context)
+                isUsageGranted = PermissionUtils.isUsageStatsGranted(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -385,14 +409,15 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = SurfaceContainer
+                    color = SurfaceContainer,
+                    border = if (isAccessibilityGranted) androidx.compose.foundation.BorderStroke(1.dp, StatusGreenBorder.copy(alpha = 0.5f)) else null
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Accessibility,
                                 contentDescription = null,
-                                tint = AccentViolet,
+                                tint = if (isAccessibilityGranted) StatusGreen else AccentViolet,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
@@ -400,8 +425,37 @@ fun SettingsScreen(
                                 text = "Accessibility Service",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = TextPrimary,
+                                modifier = Modifier.weight(1f)
                             )
+
+                            // Green Pill Badge when Enabled
+                            if (isAccessibilityGranted) {
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = StatusGreenBg,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, StatusGreenBorder)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = StatusGreen,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Enabled",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = StatusGreen
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -414,18 +468,82 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Button(
-                            onClick = {
-                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                context.startActivity(intent)
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                                contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Text("Enable Accessibility", fontWeight = FontWeight.Bold)
+                        if (isAccessibilityGranted) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = StatusGreenBg
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = StatusGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Access granted & Service Running",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StatusGreen,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                     OutlinedButton(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                try {
+                                                    val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(fallback)
+                                                } catch (ex: Exception) {
+                                                    android.widget.Toast.makeText(context, "Please open system settings manually", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("Manage", fontSize = 11.sp, color = StatusGreen)
+                                    }
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        try {
+                                            val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(fallback)
+                                        } catch (ex: Exception) {
+                                            android.widget.Toast.makeText(context, "Please open system settings manually", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("Enable Accessibility", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -436,14 +554,15 @@ fun SettingsScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    color = SurfaceContainer
+                    color = SurfaceContainer,
+                    border = if (isUsageGranted) androidx.compose.foundation.BorderStroke(1.dp, StatusGreenBorder.copy(alpha = 0.5f)) else null
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
-                                tint = AccentViolet,
+                                tint = if (isUsageGranted) StatusGreen else AccentViolet,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
@@ -451,8 +570,37 @@ fun SettingsScreen(
                                 text = "Usage Stats Permission",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = TextPrimary,
+                                modifier = Modifier.weight(1f)
                             )
+
+                            // Green Pill Badge when Granted
+                            if (isUsageGranted) {
+                                Surface(
+                                    shape = RoundedCornerShape(50),
+                                    color = StatusGreenBg,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, StatusGreenBorder)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = StatusGreen,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Access Granted",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = StatusGreen
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -465,14 +613,78 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        OutlinedButton(
-                            onClick = {
-                                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-                                context.startActivity(intent)
-                            },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Grant Usage Access", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                        if (isUsageGranted) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = StatusGreenBg
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = StatusGreen,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Access Granted & Measuring Usage",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StatusGreen,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                     OutlinedButton(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                try {
+                                                    val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(fallback)
+                                                } catch (ex: Exception) {
+                                                    android.widget.Toast.makeText(context, "Please open system settings manually", android.widget.Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("Manage", fontSize = 11.sp, color = StatusGreen)
+                                    }
+                                }
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        try {
+                                            val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(fallback)
+                                        } catch (ex: Exception) {
+                                            android.widget.Toast.makeText(context, "Please open system settings manually", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Grant Usage Access", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }

@@ -248,7 +248,7 @@ fun RuleCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "${if (rule.limitType == "DAILY_TOTAL") "Daily Total" else "Single Session"}: $timeLabel • Cooldown: $cdLabel",
+                        text = "Daily Total: ${rule.dailyLimitMinutes}m • Session: ${rule.sessionLimitMinutes}m • Cooldown: $cdLabel",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextSecondary

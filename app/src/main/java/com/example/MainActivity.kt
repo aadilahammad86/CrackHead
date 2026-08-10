@@ -79,6 +79,13 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.CrackheadTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.ui.screens.PermissionRequestScreen
+import com.example.util.PermissionUtils
 
 class MainActivity : ComponentActivity() {
 
@@ -87,6 +94,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
 
         val initialTab = intent.getStringExtra("OPEN_TAB") ?: "home"
 
@@ -113,6 +126,49 @@ fun CrackheadMainApp(
     viewModel: MainViewModel,
     initialTab: String
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var permissionsGranted by remember { mutableStateOf(PermissionUtils.areAllRequiredPermissionsGranted(context)) }
+    var userDismissedPermissionScreen by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val isNowGranted = PermissionUtils.areAllRequiredPermissionsGranted(context)
+                permissionsGranted = isNowGranted
+                if (isNowGranted) {
+                    userDismissedPermissionScreen = true
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    if (!permissionsGranted && !userDismissedPermissionScreen) {
+        PermissionRequestScreen(
+            onRequestNotificationPermission = {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    (context as? ComponentActivity)?.requestPermissions(
+                        arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                        1001
+                    )
+                }
+            },
+            onContinueToApp = {
+                permissionsGranted = PermissionUtils.areAllRequiredPermissionsGranted(context)
+                userDismissedPermissionScreen = true
+            },
+            onSkipForNow = {
+                userDismissedPermissionScreen = true
+            }
+        )
+        return
+    }
+
     var currentScreen by remember { mutableStateOf(if (initialTab == "insights") "insights" else "home") }
     var previousScreen by remember { mutableStateOf("home") }
     var selectedAppForSheet by remember { mutableStateOf<MonitoredApp?>(null) }
@@ -188,6 +244,8 @@ fun CrackheadMainApp(
                 "select_apps" -> SelectAppsScreen(
                     allApps = allApps,
                     selectedPackages = selectedRuleApps,
+                    existingRules = rules,
+                    editingRuleId = editingRule?.id,
                     onTogglePackage = { pkg -> viewModel.toggleAppInRuleSelection(pkg) },
                     onRefreshApps = { viewModel.refreshDeviceApps() },
                     onBack = { currentScreen = if (editingRule != null) "new_rule" else previousScreen },
@@ -197,6 +255,7 @@ fun CrackheadMainApp(
                 "new_rule" -> NewRuleScreen(
                     allApps = allApps,
                     selectedPackages = selectedRuleApps,
+                    existingRules = rules,
                     editingRule = editingRule,
                     onOpenAppPicker = { currentScreen = "select_apps" },
                     onBack = {

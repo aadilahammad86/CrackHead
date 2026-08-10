@@ -225,8 +225,13 @@ fun CooldownScreen(
                     fontSize = 13.sp,
                     color = com.example.ui.theme.TextSecondary
                 )
+                val cooldownLabel = if (cooldownMinutes >= 60 && cooldownMinutes % 60 == 0) {
+                    "${cooldownMinutes / 60}h cooldown"
+                } else {
+                    "${cooldownMinutes}m cooldown"
+                }
                 Text(
-                    text = "${cooldownMinutes}h cooldown",
+                    text = cooldownLabel,
                     fontSize = 13.sp,
                     color = com.example.ui.theme.TextSecondary
                 )

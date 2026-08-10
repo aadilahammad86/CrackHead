@@ -34,7 +34,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -358,7 +363,8 @@ fun AppUsageCard(
     onClick: () -> Unit
 ) {
     val usedMins = (app.dailyUsageSeconds / 60).toInt()
-    val progress = (usedMins.toFloat() / app.dailyLimitMinutes.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+    val limitMins = minOf(app.dailyLimitMinutes, app.sessionLimitMinutes).coerceAtLeast(1)
+    val progress = (usedMins.toFloat() / limitMins.toFloat()).coerceIn(0f, 1f)
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "appUsageProgress")
 
     val initialsBg = com.example.ui.theme.getAppColor(app.packageName, app.appName)
@@ -403,10 +409,34 @@ fun AppUsageCard(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
+                    Text(
+                        text = if (app.sessionLimitMinutes <= app.dailyLimitMinutes) {
+                            "Limit: ${app.sessionLimitMinutes}m session"
+                        } else {
+                            "Limit: ${app.dailyLimitMinutes}m daily"
+                        },
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
                 }
 
                 // Status String
                 if (app.isBlocked) {
+                    var remainingSec by remember(app.cooldownStartTimestamp, app.cooldownDurationMinutes) {
+                        mutableLongStateOf(app.remainingCooldownSeconds)
+                    }
+
+                    LaunchedEffect(app.isBlocked, app.cooldownStartTimestamp) {
+                        while (app.isBlocked) {
+                            remainingSec = app.remainingCooldownSeconds
+                            delay(1000L)
+                        }
+                    }
+
+                    val mins = remainingSec / 60
+                    val secs = remainingSec % 60
+                    val timeFormatted = if (mins > 0) "${mins}m ${secs}s" else "${secs}s"
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.Lock,
@@ -416,7 +446,7 @@ fun AppUsageCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "On cooldown",
+                            text = "On cooldown ($timeFormatted)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = CooldownRed
@@ -424,8 +454,9 @@ fun AppUsageCard(
                     }
                 } else {
                     Text(
-                        text = "${usedMins}m / ${app.dailyLimitMinutes}m",
+                        text = "${usedMins}m / ${limitMins}m",
                         fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = TextSecondary
                     )
                 }
