@@ -26,8 +26,6 @@ class CrackheadAccessibilityService : AccessibilityService() {
         if (event == null) return
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkgName = event.packageName?.toString() ?: return
-            if (pkgName == "com.android.systemui") return
-
             currentForegroundPackage = pkgName
             checkPackageState(pkgName)
         }
