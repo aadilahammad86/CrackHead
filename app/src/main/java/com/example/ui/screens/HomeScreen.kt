@@ -262,6 +262,52 @@ fun HomeScreen(
                 }
             }
 
+            // Live Active Foreground Session Indicator Banner
+            val activeSessionApp = monitoredApps.firstOrNull { it.currentSessionSeconds > 0 && !it.isBlocked }
+            if (activeSessionApp != null) {
+                item {
+                    val sMins = activeSessionApp.currentSessionSeconds / 60
+                    val sSecs = activeSessionApp.currentSessionSeconds % 60
+                    val timeStr = String.format("%02dm %02ds", sMins, sSecs)
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = com.example.ui.theme.StatusGreenBg,
+                        border = BorderStroke(1.dp, com.example.ui.theme.StatusGreenBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(com.example.ui.theme.StatusGreen)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "ACTIVE FOREGROUND SESSION TRACKING",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = com.example.ui.theme.StatusGreenContent
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${activeSessionApp.appName} • $timeStr active foreground run time",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = com.example.ui.theme.StatusGreenContent
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Monitored Apps Cards
             if (monitoredApps.isEmpty()) {
                 item {
