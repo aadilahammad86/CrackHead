@@ -494,6 +494,33 @@ fun AppUsageCard(
                             color = CooldownRed
                         )
                     }
+                } else if (app.currentSessionSeconds > 0) {
+                    val sMins = app.currentSessionSeconds / 60
+                    val sSecs = app.currentSessionSeconds % 60
+                    val sessionTimeFormatted = String.format("%02dm %02ds", sMins, sSecs)
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(com.example.ui.theme.StatusGreen)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Session: $sessionTimeFormatted",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = com.example.ui.theme.StatusGreenContent
+                            )
+                            Text(
+                                text = "Daily: ${usedMins}m / ${limitMins}m",
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
                 } else {
                     Text(
                         text = "${usedMins}m / ${limitMins}m",
