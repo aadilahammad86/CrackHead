@@ -77,24 +77,49 @@ class CrackheadMonitoringService : Service() {
 
     private fun getForegroundAppPackage(): String? {
         val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return lastKnownForegroundPackage
-        val time = System.currentTimeMillis()
-        val events = usm.queryEvents(time - 60000, time)
+        val now = System.currentTimeMillis()
+        val events = usm.queryEvents(now - 30000, now)
         val event = UsageEvents.Event()
-        var latestPkg: String? = null
-        var maxTime = 0L
+
+        val lastResumeMap = mutableMapOf<String, Long>()
+        val lastPauseMap = mutableMapOf<String, Long>()
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
-            if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED ||
-                event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                if (event.timeStamp > maxTime) {
-                    maxTime = event.timeStamp
-                    latestPkg = event.packageName
+            val pkg = event.packageName ?: continue
+            when (event.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED,
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    lastResumeMap[pkg] = event.timeStamp
+                }
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                UsageEvents.Event.ACTIVITY_STOPPED,
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    lastPauseMap[pkg] = event.timeStamp
                 }
             }
         }
-        if (latestPkg != null) {
-            lastKnownForegroundPackage = latestPkg
+
+        var candidatePkg: String? = null
+        var highestResumeTime = 0L
+
+        for ((pkg, resTime) in lastResumeMap) {
+            if (resTime > highestResumeTime) {
+                highestResumeTime = resTime
+                candidatePkg = pkg
+            }
         }
+
+        if (candidatePkg != null) {
+            val pauseTime = lastPauseMap[candidatePkg] ?: 0L
+            if (pauseTime >= highestResumeTime) {
+                lastKnownForegroundPackage = null
+                return null
+            }
+            lastKnownForegroundPackage = candidatePkg
+            return candidatePkg
+        }
+
         return lastKnownForegroundPackage
     }
 
