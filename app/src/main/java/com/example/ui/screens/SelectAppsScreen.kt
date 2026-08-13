@@ -53,8 +53,21 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import androidx.compose.foundation.BorderStroke
-
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 
 import com.example.data.UsageRule
@@ -68,6 +81,7 @@ fun SelectAppsScreen(
     existingRules: List<UsageRule> = emptyList(),
     editingRuleId: Long? = null,
     onTogglePackage: (String) -> Unit,
+    onClearSelection: (() -> Unit)? = null,
     onRefreshApps: (() -> Unit)? = null,
     onBack: () -> Unit,
     onContinue: () -> Unit
@@ -283,12 +297,102 @@ fun SelectAppsScreen(
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
             ) {
-                Text(
-                    text = "${selectedPackages.size} apps selected",
-                    fontSize = 14.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioMediumBouncy
+                            )
+                        )
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Material 3 App Selection Pill Badge
+                    Surface(
+                        shape = CircleShape,
+                        color = if (selectedPackages.isNotEmpty())
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            SurfaceContainerHigh,
+                        border = BorderStroke(
+                            1.dp,
+                            if (selectedPackages.isNotEmpty())
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            else
+                                Color.Transparent
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (selectedPackages.isNotEmpty())
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            TextMuted
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${selectedPackages.size} apps selected",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (selectedPackages.isNotEmpty())
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    TextSecondary
+                            )
+                        }
+                    }
+
+                    // Material 3 Expressive Clear All Button
+                    AnimatedVisibility(
+                        visible = selectedPackages.isNotEmpty(),
+                        enter = slideInVertically(
+                            initialOffsetY = { fullHeight -> fullHeight },
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessLow,
+                                dampingRatio = Spring.DampingRatioMediumBouncy
+                            )
+                        ) + fadeIn(animationSpec = tween(300)),
+                        exit = slideOutVertically(
+                            targetOffsetY = { fullHeight -> fullHeight },
+                            animationSpec = spring(stiffness = Spring.StiffnessLow)
+                        ) + fadeOut(animationSpec = tween(200))
+                    ) {
+                        Button(
+                            onClick = { onClearSelection?.invoke() },
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear All",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Clear All",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
 
                 Button(
                     onClick = {

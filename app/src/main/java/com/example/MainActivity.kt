@@ -265,6 +265,7 @@ fun CrackheadMainApp(
                     existingRules = rules,
                     editingRuleId = editingRule?.id,
                     onTogglePackage = { pkg -> viewModel.toggleAppInRuleSelection(pkg) },
+                    onClearSelection = { viewModel.clearSelectedRuleApps() },
                     onRefreshApps = { viewModel.refreshDeviceApps() },
                     onBack = { currentScreen = if (editingRule != null) "new_rule" else previousScreen },
                     onContinue = { currentScreen = "new_rule" }

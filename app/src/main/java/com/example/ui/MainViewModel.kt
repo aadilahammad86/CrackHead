@@ -132,6 +132,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedRuleApps.value = current
     }
 
+    fun clearSelectedRuleApps() {
+        _selectedRuleApps.value = emptyList()
+    }
+
     fun saveRule(rule: UsageRule) {
         viewModelScope.launch {
             repository.saveRule(rule)
