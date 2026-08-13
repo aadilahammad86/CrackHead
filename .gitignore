@@ -27,9 +27,3 @@ debug.keystore
 .idea/vcs.xml
 .idea/codeStyles/codeStyleConfig.xml
 .idea/codeStyles/Project.xml
-gradle/libs.versions.toml
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper.properties
-gradlew
-gradlew.bat
-gradle/**

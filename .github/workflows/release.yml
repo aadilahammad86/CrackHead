@@ -62,15 +62,18 @@ jobs:
             echo "KEY_ALIAS=upload" >> $GITHUB_ENV
           fi
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build Universal Release APK
-        run: gradle :app:assembleRelease --no-configuration-cache
+        run: ./gradlew :app:assembleRelease --no-configuration-cache
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/${{ env.KEYSTORE_FILE }}
           STORE_PASSWORD: ${{ env.STORE_PASS }}
           KEY_PASSWORD: ${{ env.KEY_PASS }}
 
       - name: Build Universal Debug APK
-        run: gradle :app:assembleDebug --no-configuration-cache
+        run: ./gradlew :app:assembleDebug --no-configuration-cache
 
       - name: Prepare APK Outputs
         run: |
